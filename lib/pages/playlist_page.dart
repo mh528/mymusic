@@ -154,7 +154,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     _IconBtn(
-                                      icon: Icons.download_outlined,
+                                      icon: Icons.download_for_offline,
                                       onTap: () {},
                                     ),
                                     const SizedBox(width: 8),

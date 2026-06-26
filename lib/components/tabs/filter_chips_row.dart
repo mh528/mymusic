@@ -33,7 +33,9 @@ class FilterChipsRow<T> extends StatelessWidget {
               labelStyle: AppTextStyles.chipLabel.copyWith(
                 color: options[i] == selected ? AppColors.black : AppColors.textMuted,
               ),
-              side: BorderSide(color: AppColors.divider),
+              side: BorderSide(
+                color: options[i] == selected ? AppColors.white : AppColors.divider,
+              ),
               showCheckmark: false,
             ),
           ],

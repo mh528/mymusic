@@ -176,7 +176,7 @@ class _NowPlayingMoreMenuState extends State<NowPlayingMoreMenu> {
                 ? Icons.downloading
                 : _isDownloaded
                     ? Icons.download_done
-                    : Icons.download_outlined,
+                    : Icons.download_for_offline,
             label: _isDownloading
                 ? 'Downloading…'
                 : _isDownloaded

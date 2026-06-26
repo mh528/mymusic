@@ -242,7 +242,7 @@ class _NowPlayingSection extends ConsumerWidget {
                       ? Icons.downloading
                       : song.isDownloaded
                           ? Icons.download_done
-                          : Icons.download_outlined,
+                          : Icons.download_for_offline,
                   color: song.isDownloaded ? AppColors.white : AppColors.textMuted,
                 ),
                 onPressed: song.isDownloading ? null : () {},
@@ -270,8 +270,8 @@ class _NowPlayingSection extends ConsumerWidget {
           const SizedBox(height: 4),
           // Controls row
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const Spacer(),
               GestureDetector(
                 onTap: () => ref.read(playbackProvider.notifier).skipPrevious(),
                 child: Container(
@@ -302,13 +302,14 @@ class _NowPlayingSection extends ConsumerWidget {
                   child: const Icon(Icons.skip_next, color: AppColors.white, size: 28),
                 ),
               ),
-              const SizedBox(width: 16),
+              const Spacer(),
               _RepeatButton(
                 mode: playback.repeatMode,
                 onTap: () => ref.read(playbackProvider.notifier).cycleRepeat(),
               ),
             ],
           ),
+          const SizedBox(height: 8),
           // Ghost buttons row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -317,13 +318,13 @@ class _NowPlayingSection extends ConsumerWidget {
                 icon: const Icon(Icons.playlist_add),
                 label: const Text('Add to Playlist'),
                 onPressed: () {},
-                style: TextButton.styleFrom(foregroundColor: AppColors.textMuted),
+                style: TextButton.styleFrom(foregroundColor: AppColors.white),
               ),
               TextButton.icon(
-                icon: const Icon(Icons.more_horiz),
+                icon: const Icon(Icons.more_vert),
                 label: const Text('More'),
                 onPressed: onMoreTap,
-                style: TextButton.styleFrom(foregroundColor: AppColors.textMuted),
+                style: TextButton.styleFrom(foregroundColor: AppColors.white),
               ),
             ],
           ),

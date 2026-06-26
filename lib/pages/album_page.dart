@@ -171,7 +171,7 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                                           ? Icons.download_done
                                           : isDownloading
                                               ? Icons.downloading
-                                              : Icons.download_outlined,
+                                              : Icons.download_for_offline,
                                       onTap: () {
                                         if (!isDownloaded && !isDownloading) {
                                           setState(() => isDownloading = true);
@@ -315,7 +315,7 @@ class _AlbumSongRow extends StatelessWidget {
                     ? Icons.download_done
                     : song.isDownloading
                         ? Icons.downloading
-                        : Icons.download_outlined,
+                        : Icons.download_for_offline,
                 color: AppColors.textMuted,
                 size: 20,
               ),

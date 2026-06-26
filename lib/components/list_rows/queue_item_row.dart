@@ -71,11 +71,7 @@ class QueueItemRow extends StatelessWidget {
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
-            const Icon(
-              Icons.drag_handle,
-              color: AppColors.textMuted,
-              size: 20,
-            ),
+            const SizedBox(width: 12),
           ],
         ),
       ),

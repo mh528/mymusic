@@ -140,4 +140,36 @@ class AppTextStyles {
   static const tabActive = TextStyle(color: AppColors.white, fontSize: 14, fontWeight: FontWeight.bold);
   static const tabInactive = TextStyle(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.normal);
   static const chipLabel = TextStyle(fontSize: 13);
+
+  // Context menus
+  static const menuItemLabel = TextStyle(color: AppColors.white, fontSize: 16);
+  static const menuSubtitle = TextStyle(color: AppColors.textMuted, fontSize: 13);
+
+  // Queue position number
+  static const positionNumber = TextStyle(color: AppColors.textMuted, fontSize: 13);
+}
+
+class AppSpacing {
+  static const double xs = 2.0;
+  static const double sm = 4.0;
+  static const double md = 8.0;
+  static const double lg = 12.0;
+  static const double xl = 16.0;
+  static const double xxl = 24.0;
+  static const double rowHeight = 64.0;
+  static const double menuItemHeight = 56.0;
+  static const double tabBarHeight = 56.0;
+}
+
+class AppRadius {
+  static const double chip = 20.0;
+  static const double card = 8.0;
+  static const double thumbnail = 6.0;
+  static const double bottomSheet = 16.0;
+}
+
+class AppIconSize {
+  static const double sm = 20.0;
+  static const double md = 24.0;
+  static const double lg = 28.0;
 }

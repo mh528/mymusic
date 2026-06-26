@@ -151,7 +151,7 @@ class _PlaylistContextMenuContentState extends State<_PlaylistContextMenuContent
                       ? Icons.downloading
                       : _isDownloaded
                           ? Icons.download_done
-                          : Icons.download_outlined,
+                          : Icons.download_for_offline,
                   color: _isDownloaded ? AppColors.white : AppColors.textMuted,
                 ),
                 onPressed: _isDownloading ? null : () => _handleDownloadToggle(context),
@@ -191,7 +191,7 @@ class _PlaylistContextMenuContentState extends State<_PlaylistContextMenuContent
                 ? Icons.downloading
                 : _isDownloaded
                     ? Icons.download_done
-                    : Icons.download_outlined,
+                    : Icons.download_for_offline,
             label: _isDownloading
                 ? 'Downloading…'
                 : _isDownloaded

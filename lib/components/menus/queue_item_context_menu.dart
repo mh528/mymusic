@@ -126,7 +126,7 @@ class QueueItemContextMenu extends StatelessWidget {
             },
           ),
           _MenuItem(
-            icon: Icons.download_outlined,
+            icon: Icons.download_for_offline,
             label: 'Download',
             onTap: () {
               onDownload?.call();

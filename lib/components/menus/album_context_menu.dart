@@ -144,7 +144,7 @@ class _AlbumContextMenuContentState extends State<_AlbumContextMenuContent> {
                       ? Icons.downloading
                       : _isDownloaded
                           ? Icons.download_done
-                          : Icons.download_outlined,
+                          : Icons.download_for_offline,
                   color: _isDownloaded ? AppColors.white : AppColors.textMuted,
                 ),
                 onPressed: _isDownloading ? null : () => _handleDownloadToggle(context),
@@ -175,7 +175,7 @@ class _AlbumContextMenuContentState extends State<_AlbumContextMenuContent> {
                 ? Icons.downloading
                 : _isDownloaded
                     ? Icons.download_done
-                    : Icons.download_outlined,
+                    : Icons.download_for_offline,
             label: _isDownloading
                 ? 'Downloading…'
                 : _isDownloaded

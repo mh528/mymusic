@@ -19,7 +19,7 @@ class ContentTabBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 56,
+          height: AppSpacing.tabBarHeight,
           child: ColoredBox(
             color: AppColors.black,
             child: Row(

@@ -124,20 +124,12 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                   children: [
                     // Album info card
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.xl),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: AppColors.bg3,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const ArtThumbnail(size: 120),
-                          ),
-                          const SizedBox(width: 16),
+                          ArtThumbnail(size: 120),
+                          const SizedBox(width: AppSpacing.xl),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,15 +140,14 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: AppSpacing.sm),
                                 Text(album!.artist, style: AppTextStyles.bodyMuted),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: AppSpacing.xs),
                                 Text(
                                   '${album!.year} · ${album!.songCount} songs',
                                   style: AppTextStyles.caption,
                                 ),
-                                const SizedBox(height: 12),
-                                // Library + Download icon buttons only
+                                const SizedBox(height: AppSpacing.lg),
                                 AppButtonBar(
                                   expanded: false,
                                   buttons: [
@@ -188,55 +179,18 @@ class _AlbumPageState extends ConsumerState<AlbumPage> {
                     ),
                     // Action row — Play | Shuffle | Queue
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
                       child: Row(
                         children: [
-                          Expanded(
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.play_arrow, color: AppColors.white),
-                              label: const Text('Play',
-                                  style: TextStyle(color: AppColors.white)),
-                              onPressed: () {},
-                              style: TextButton.styleFrom(
-                                backgroundColor: AppColors.bg3,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.shuffle, color: AppColors.white),
-                              label: const Text('Shuffle',
-                                  style: TextStyle(color: AppColors.white)),
-                              onPressed: () {},
-                              style: TextButton.styleFrom(
-                                backgroundColor: AppColors.bg3,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.queue_music, color: AppColors.white),
-                              label: const Text('Queue',
-                                  style: TextStyle(color: AppColors.white)),
-                              onPressed: () {},
-                              style: TextButton.styleFrom(
-                                backgroundColor: AppColors.bg3,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ),
+                          Expanded(child: _ActionBtn(icon: Icons.play_arrow, label: 'Play', onTap: () {})),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: _ActionBtn(icon: Icons.shuffle, label: 'Shuffle', onTap: () {})),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: _ActionBtn(icon: Icons.queue_music, label: 'Queue', onTap: () {})),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Divider(),
+                    const SizedBox(height: AppSpacing.md),
                     // Songs list
                     ..._filteredSongs.asMap().entries.map((entry) {
                       final index = entry.key;
@@ -326,6 +280,32 @@ class _AlbumSongRow extends StatelessWidget {
               onPressed: onMoreTap,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionBtn({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: AppColors.white, size: AppIconSize.sm),
+        label: Text(label, style: AppTextStyles.body),
+        style: TextButton.styleFrom(
+          backgroundColor: AppColors.bg3,
+          foregroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+          padding: EdgeInsets.zero,
         ),
       ),
     );

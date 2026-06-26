@@ -35,17 +35,13 @@ class LyricsDrawer extends StatelessWidget {
           children: [
             Text(
               song.title,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const Text(
               'Now Playing',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              style: AppTextStyles.caption,
             ),
           ],
         ),
@@ -55,13 +51,13 @@ class LyricsDrawer extends StatelessWidget {
           '♪ Lyrics coming soon',
           style: TextStyle(
             color: Color(0xCCFFFFFF),
-            fontSize: 24,
+            fontSize: 24, // intentionally large — decorative lyric placeholder
           ),
         ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -69,7 +65,7 @@ class LyricsDrawer extends StatelessWidget {
                 icon: const Icon(Icons.skip_previous, color: AppColors.white, size: 36),
                 onPressed: onSkipPrevious,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.xl),
               CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.white,
@@ -82,7 +78,7 @@ class LyricsDrawer extends StatelessWidget {
                   onPressed: onPlayPause,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.xl),
               IconButton(
                 icon: const Icon(Icons.skip_next, color: AppColors.white, size: 36),
                 onPressed: onSkipNext,

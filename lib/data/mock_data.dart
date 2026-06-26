@@ -48,6 +48,7 @@ const kSongs = [
     albumId: 'album_1',
     duration: Duration(minutes: 3, seconds: 44),
     inLibrary: true,
+    filePath: 'asset:///assets/audio/Song - Pump it Up.mp3',
   ),
   Song(
     id: 'song_2',

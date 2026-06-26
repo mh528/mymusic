@@ -18,7 +18,7 @@ class ArtThumbnail extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: AppColors.bg3,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.thumbnail),
       ),
       child: Icon(
         icon,

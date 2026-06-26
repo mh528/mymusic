@@ -268,7 +268,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         final song = songs[i];
         return SongRow(
           song: song,
-          onTap: () => playbackNotifier.playSong(song, queue: songs),
+          onTap: () {
+            playbackNotifier.playSong(song, queue: songs);
+            context.go('/queue');
+          },
           onDownloadTap: () => libraryNotifier.toggleSongDownload(song.id),
           onMoreTap: () => showSongContextMenu(
             context,

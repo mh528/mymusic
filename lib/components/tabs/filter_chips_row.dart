@@ -19,11 +19,11 @@ class FilterChipsRow<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
       child: Row(
         children: [
           for (int i = 0; i < options.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
+            if (i > 0) const SizedBox(width: AppSpacing.md),
             ChoiceChip(
               label: Text(label(options[i])),
               selected: options[i] == selected,

@@ -10,6 +10,8 @@ class Song {
   final bool isDownloading;
   final bool inLibrary;
   final bool inQueue;
+  // asset:///, file://, or https:// URL; null = not playable yet
+  final String? filePath;
 
   const Song({
     required this.id,
@@ -23,6 +25,7 @@ class Song {
     this.isDownloading = false,
     this.inLibrary = false,
     this.inQueue = false,
+    this.filePath,
   });
 
   Song copyWith({
@@ -30,6 +33,7 @@ class Song {
     bool? isDownloading,
     bool? inLibrary,
     bool? inQueue,
+    String? filePath,
   }) {
     return Song(
       id: id,
@@ -43,6 +47,7 @@ class Song {
       isDownloading: isDownloading ?? this.isDownloading,
       inLibrary: inLibrary ?? this.inLibrary,
       inQueue: inQueue ?? this.inQueue,
+      filePath: filePath ?? this.filePath,
     );
   }
 }

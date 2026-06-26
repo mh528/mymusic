@@ -4,6 +4,7 @@ import '../models/playlist.dart';
 import '../models/song.dart';
 import '../providers/library_provider.dart';
 import '../components/art_thumbnail.dart';
+import '../components/buttons.dart';
 import '../components/list_rows/song_row.dart';
 import '../theme.dart';
 
@@ -74,11 +75,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                     child: Text(
                       playlist?.name ?? '',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AppTextStyles.sectionTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -96,7 +93,7 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                 child: Center(
                   child: Text(
                     'This playlist is empty',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                    style: AppTextStyles.bodyMuted,
                   ),
                 ),
               )
@@ -106,61 +103,46 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                   children: [
                     // Playlist info card
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.xl),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: AppColors.bg3,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const ArtThumbnail(size: 120, icon: Icons.queue_music),
-                          ),
-                          const SizedBox(width: 16),
+                          ArtThumbnail(size: 120, icon: Icons.queue_music),
+                          const SizedBox(width: AppSpacing.xl),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   playlist!.name,
-                                  style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: AppTextStyles.pageTitle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: AppSpacing.sm),
                                 Text(
                                   '${playlist!.songCount} songs',
-                                  style: const TextStyle(
-                                    color: AppColors.textMuted,
-                                    fontSize: 14,
-                                  ),
+                                  style: AppTextStyles.bodyMuted,
                                 ),
-                                const SizedBox(height: 12),
-                                // Icon buttons row
-                                Row(
-                                  children: [
-                                    _IconBtn(
+                                const SizedBox(height: AppSpacing.lg),
+                                AppButtonBar(
+                                  expanded: false,
+                                  buttons: [
+                                    AppIconButton(
                                       icon: Icons.edit,
-                                      color: _isEditing ? AppColors.white : AppColors.textMuted,
+                                      iconColor: _isEditing ? AppColors.white : AppColors.textMuted,
                                       onTap: () => setState(() {
                                         _isEditing = !_isEditing;
                                         _confirmingRemoveId = null;
                                       }),
                                     ),
-                                    const SizedBox(width: 8),
-                                    _IconBtn(
+                                    AppIconButton(
                                       icon: Icons.download_for_offline,
                                       onTap: () {},
                                     ),
-                                    const SizedBox(width: 8),
-                                    _IconBtn(
+                                    AppIconButton(
                                       icon: Icons.delete_outline,
-                                      color: AppColors.red,
+                                      iconColor: AppColors.red,
                                       onTap: () {},
                                     ),
                                   ],
@@ -173,36 +155,18 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
                     ),
                     // Action row
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
                       child: Row(
                         children: [
-                          Expanded(
-                            child: _ActionBtn(
-                              icon: Icons.play_arrow,
-                              label: 'Play',
-                              onTap: () {},
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _ActionBtn(
-                              icon: Icons.shuffle,
-                              label: 'Shuffle',
-                              onTap: () {},
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _ActionBtn(
-                              icon: Icons.queue_music,
-                              label: 'Queue',
-                              onTap: () {},
-                            ),
-                          ),
+                          Expanded(child: _ActionBtn(icon: Icons.play_arrow, label: 'Play', onTap: () {})),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: _ActionBtn(icon: Icons.shuffle, label: 'Shuffle', onTap: () {})),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: _ActionBtn(icon: Icons.queue_music, label: 'Queue', onTap: () {})),
                         ],
                       ),
                     ),
-                    const Divider(),
+                    const SizedBox(height: AppSpacing.md),
                     // Songs list
                     Expanded(
                       child: _isEditing
@@ -251,63 +215,26 @@ class _PlaylistPageState extends ConsumerState<PlaylistPage> {
   }
 }
 
-class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _IconBtn({
-    required this.icon,
-    this.color = AppColors.textMuted,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppColors.bg3,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(icon, color: color, size: 18),
-      ),
-    );
-  }
-}
-
 class _ActionBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _ActionBtn({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _ActionBtn({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 40,
-      child: TextButton(
+      child: TextButton.icon(
         onPressed: onTap,
+        icon: Icon(icon, color: AppColors.white, size: AppIconSize.sm),
+        label: Text(label, style: AppTextStyles.body),
         style: TextButton.styleFrom(
-          backgroundColor: AppColors.bg2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          backgroundColor: AppColors.bg3,
+          foregroundColor: AppColors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
           padding: EdgeInsets.zero,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppColors.white, size: 18),
-            const SizedBox(width: 4),
-            Text(label, style: const TextStyle(color: AppColors.white, fontSize: 13)),
-          ],
         ),
       ),
     );
@@ -346,24 +273,24 @@ class _PlaylistSongRow extends StatelessWidget {
     return GestureDetector(
       onTap: isConfirmingRemove ? onCancelConfirm : null,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
         child: Row(
           children: [
-            const Icon(Icons.drag_handle, color: AppColors.textMuted),
-            const SizedBox(width: 12),
+            const Icon(Icons.drag_handle, color: AppColors.textMuted, size: AppIconSize.sm),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     song.title,
-                    style: const TextStyle(color: AppColors.white, fontSize: 15),
+                    style: AppTextStyles.listTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     song.artist,
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: AppTextStyles.menuSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -373,8 +300,8 @@ class _PlaylistSongRow extends StatelessWidget {
             if (isConfirmingRemove)
               TextButton(
                 onPressed: onConfirmRemove,
-                child: const Text('Confirm Remove',
-                    style: TextStyle(color: AppColors.red, fontSize: 13)),
+                child: Text('Confirm Remove',
+                    style: AppTextStyles.menuSubtitle.copyWith(color: AppColors.red)),
               )
             else
               IconButton(

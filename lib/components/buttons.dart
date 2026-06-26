@@ -33,12 +33,12 @@ class AppIconButton extends StatelessWidget {
             height: size,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             child: Icon(icon, color: iconColor, size: size * 0.48),
           ),
           if (label != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.sm),
             Text(label!, style: AppTextStyles.caption),
           ],
         ],
@@ -64,7 +64,7 @@ class AppButtonBar extends StatelessWidget {
     return Row(
       children: [
         for (int i = 0; i < buttons.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
+          if (i > 0) const SizedBox(width: AppSpacing.md),
           if (expanded) Expanded(child: _centered(buttons[i]))
           else _centered(buttons[i]),
         ],
@@ -98,15 +98,15 @@ class AppGhostButton extends StatelessWidget {
       onPressed: onTap,
       style: TextButton.styleFrom(
         foregroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 3),
+          Icon(icon, size: AppIconSize.sm, color: color),
+          const SizedBox(height: AppSpacing.sm),
           Text(label, style: AppTextStyles.caption.copyWith(color: color)),
         ],
       ),

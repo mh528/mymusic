@@ -67,9 +67,9 @@ class QueueItemContextMenu extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bg1,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
+      padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl + bottomPadding),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -77,18 +77,14 @@ class QueueItemContextMenu extends StatelessWidget {
           Row(
             children: [
               ArtThumbnail(size: 48),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       song.title,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppTextStyles.sectionTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -106,9 +102,9 @@ class QueueItemContextMenu extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.lg),
           const Divider(),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.sm),
           _MenuItem(
             icon: Icons.library_add,
             label: 'Add to Library',
@@ -206,16 +202,16 @@ class _MenuItem extends StatelessWidget {
     final color = destructive ? AppColors.red : AppColors.white;
 
     return SizedBox(
-      height: 56,
+      height: AppSpacing.menuItemHeight,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: Row(
             children: [
-              Icon(icon, size: 24, color: color),
-              const SizedBox(width: 16),
-              Text(label, style: TextStyle(fontSize: 16, color: color)),
+              Icon(icon, size: AppIconSize.md, color: color),
+              const SizedBox(width: AppSpacing.xl),
+              Text(label, style: AppTextStyles.menuItemLabel.copyWith(color: color)),
             ],
           ),
         ),

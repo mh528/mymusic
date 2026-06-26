@@ -21,15 +21,15 @@ class SongRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 64,
+      height: AppSpacing.rowHeight,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
           child: Row(
             children: [
               ArtThumbnail(size: 48),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -37,20 +37,14 @@ class SongRow extends StatelessWidget {
                   children: [
                     Text(
                       song.title,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 15,
-                      ),
+                      style: AppTextStyles.listTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${song.artist} · ${song.duration.mmss}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      style: AppTextStyles.listSubtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -67,7 +61,7 @@ class SongRow extends StatelessWidget {
                 icon: const Icon(
                   Icons.more_vert,
                   color: AppColors.textMuted,
-                  size: 20,
+                  size: AppIconSize.sm,
                 ),
                 onPressed: onMoreTap,
                 padding: EdgeInsets.zero,

@@ -113,7 +113,7 @@ class MockMusicRepository implements MusicRepository {
 
   @override
   Future<String?> getStreamUrl(String songId) async {
-    // Phase 1: no local audio files wired up yet
-    return null;
+    final song = kSongs.where((s) => s.id == songId).firstOrNull;
+    return song?.filePath;
   }
 }

@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import '../models/settings.dart';
+import '../data/audio_service.dart';
 
 class PlaybackState {
   final Song? currentSong;
@@ -47,8 +50,32 @@ final playbackProvider =
     NotifierProvider<PlaybackNotifier, PlaybackState>(PlaybackNotifier.new);
 
 class PlaybackNotifier extends Notifier<PlaybackState> {
+  final _audio = AudioService();
+  StreamSubscription<Duration>? _positionSub;
+  StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+
   @override
-  PlaybackState build() => const PlaybackState();
+  PlaybackState build() {
+    _positionSub = _audio.positionStream.listen((pos) {
+      state = state.copyWith(position: pos);
+    });
+    _durationSub = _audio.durationStream.listen((dur) {
+      if (dur != null) state = state.copyWith(duration: dur);
+    });
+    _playerStateSub = _audio.playerStateStream.listen((ps) {
+      state = state.copyWith(isPlaying: ps.playing);
+    });
+
+    ref.onDispose(() {
+      _positionSub?.cancel();
+      _durationSub?.cancel();
+      _playerStateSub?.cancel();
+      _audio.dispose();
+    });
+
+    return const PlaybackState();
+  }
 
   void playSong(Song song, {List<Song> queue = const []}) {
     state = state.copyWith(
@@ -58,9 +85,17 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       position: Duration.zero,
       duration: song.duration,
     );
+    if (song.filePath != null) {
+      _audio.play(song.filePath!);
+    }
   }
 
   void playPause() {
+    if (state.isPlaying) {
+      _audio.pause();
+    } else {
+      _audio.resume();
+    }
     state = state.copyWith(isPlaying: !state.isPlaying);
   }
 
@@ -68,14 +103,17 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     final queue = state.queue;
     if (queue.isEmpty) {
       if (state.repeatMode == RepeatMode.one && state.currentSong != null) {
+        _audio.seek(Duration.zero);
         state = state.copyWith(position: Duration.zero, isPlaying: true);
       } else {
+        _audio.pause();
         state = state.copyWith(isPlaying: false, position: Duration.zero);
       }
       return;
     }
 
     if (state.repeatMode == RepeatMode.one && state.currentSong != null) {
+      _audio.seek(Duration.zero);
       state = state.copyWith(position: Duration.zero);
       return;
     }
@@ -92,7 +130,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           duration: next.duration,
           isPlaying: true,
         );
+        if (next.filePath != null) _audio.play(next.filePath!);
       } else {
+        _audio.pause();
         state = state.copyWith(isPlaying: false, position: Duration.zero);
       }
     } else {
@@ -103,11 +143,13 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: next.duration,
         isPlaying: true,
       );
+      if (next.filePath != null) _audio.play(next.filePath!);
     }
   }
 
   void skipPrevious() {
     if (state.position > const Duration(seconds: 3)) {
+      _audio.seek(Duration.zero);
       state = state.copyWith(position: Duration.zero);
       return;
     }
@@ -117,6 +159,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     final currentIndex = queue.indexWhere((s) => s.id == currentId);
 
     if (currentIndex <= 0) {
+      _audio.seek(Duration.zero);
       state = state.copyWith(position: Duration.zero);
     } else {
       final prev = queue[currentIndex - 1];
@@ -126,6 +169,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: prev.duration,
         isPlaying: true,
       );
+      if (prev.filePath != null) _audio.play(prev.filePath!);
     }
   }
 
@@ -139,11 +183,14 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   }
 
   void setPosition(Duration pos) {
+    _audio.seek(pos);
     state = state.copyWith(position: pos);
   }
 
   void setVolume(double v) {
-    state = state.copyWith(volume: v.clamp(0.0, 1.0));
+    final clamped = v.clamp(0.0, 1.0);
+    _audio.setVolume(clamped);
+    state = state.copyWith(volume: clamped);
   }
 
   void addToQueue(Song song) {

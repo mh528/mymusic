@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/song.dart';
 import '../../models/video.dart';
 import '../../theme.dart';
 import '../art_thumbnail.dart';
@@ -17,15 +16,15 @@ class VideoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 64,
+      height: AppSpacing.rowHeight,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
           child: Row(
             children: [
               const ArtThumbnail(size: 48, icon: Icons.play_circle_outline),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -33,20 +32,14 @@ class VideoRow extends StatelessWidget {
                   children: [
                     Text(
                       video.title,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 15,
-                      ),
+                      style: AppTextStyles.listTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${video.artist} · ${video.duration.mmss}',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
-                      ),
+                      '${video.artist} · ${video.duration.inMinutes}:${(video.duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                      style: AppTextStyles.listSubtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

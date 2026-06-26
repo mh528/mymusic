@@ -23,10 +23,10 @@ class _AddToPlaylistDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Add to Playlist'),
-      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       content: playlists.isEmpty
           ? const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.xl),
               child: Text(
                 'No playlists yet.',
                 style: TextStyle(color: AppColors.textMuted),
@@ -42,11 +42,11 @@ class _AddToPlaylistDialog extends StatelessWidget {
                   return ListTile(
                     title: Text(
                       playlist.name,
-                      style: const TextStyle(color: AppColors.white, fontSize: 15),
+                      style: AppTextStyles.listTitle,
                     ),
                     subtitle: Text(
                       '${playlist.songCount} ${playlist.songCount == 1 ? 'song' : 'songs'}',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: AppTextStyles.listSubtitle,
                     ),
                     onTap: () {
                       onAdd(playlist.id);

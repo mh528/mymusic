@@ -1,0 +1,28 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+*.g.dart
+*.freezed.dart
+
+# iOS/Android generated
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/.symlinks/
+android/local.properties
+android/.gradle/
+android/captures/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Assets — keep .gitkeep, ignore local audio files
+assets/audio/*.mp3
+assets/audio/*.m4a
+assets/audio/*.flac

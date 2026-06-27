@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/music_repository.dart';
-import 'library_provider.dart';
+import '../models/song.dart';
+import 'yt_library_provider.dart';
 
 class SearchState {
   final String query;
@@ -37,8 +38,6 @@ class SearchNotifier extends Notifier<SearchState> {
   @override
   SearchState build() => const SearchState();
 
-  MusicRepository get _repo => ref.read(musicRepositoryProvider);
-
   Future<void> search(String query) async {
     if (query.trim().isEmpty) {
       state = state.copyWith(
@@ -61,10 +60,12 @@ class SearchNotifier extends Notifier<SearchState> {
       isLoading: true,
     );
 
-    final results = await _repo.search(query);
+    // Search YouTube Music anonymously
+    final ytSvc = ref.read(youtubeMusicServiceProvider);
+    final List<Song> songs = await ytSvc.search(query);
 
     state = state.copyWith(
-      results: results,
+      results: SearchResults(songs: songs),
       isLoading: false,
     );
   }

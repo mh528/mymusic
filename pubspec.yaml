@@ -2,7 +2,7 @@ name: mymusic
 description: "My Music — a clean, private music player."
 publish_to: 'none'
 
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.12.0
@@ -32,6 +32,9 @@ dependencies:
   path_provider: ^2.1.0      # getApplicationSupportDirectory() for JSON cache
   crypto: ^3.0.3             # MD5 hash for stable song IDs
   mp3_info: ^0.2.3
+
+  # Phase 2 — YouTube Music streaming
+  youtube_explode_dart: ^3.1.0
 
 dev_dependencies:
   flutter_test:

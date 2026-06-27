@@ -5,6 +5,7 @@ import '../models/song.dart';
 import '../models/settings.dart';
 import '../data/audio_service.dart';
 import 'library_provider.dart';
+import 'yt_library_provider.dart';
 
 class PlaybackState {
   final Song? currentSong;
@@ -82,13 +83,20 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     state = state.copyWith(
       currentSong: song,
       queue: queue.isNotEmpty ? queue : state.queue,
-      isPlaying: true,
+      isPlaying: false,
       position: Duration.zero,
       duration: song.duration,
     );
-    final url = await ref.read(musicRepositoryProvider).getStreamUrl(song.id);
+    final url = await _resolveUrl(song);
     if (url == null) return;
     await _audio.play(url);
+  }
+
+  Future<String?> _resolveUrl(Song song) {
+    if (song.videoId != null) {
+      return ref.read(youtubeMusicServiceProvider).getStreamUrl(song.videoId!);
+    }
+    return ref.read(musicRepositoryProvider).getStreamUrl(song.id);
   }
 
   void playPause() {
@@ -129,9 +137,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           currentSong: next,
           position: Duration.zero,
           duration: next.duration,
-          isPlaying: true,
+          isPlaying: false,
         );
-        final url = await ref.read(musicRepositoryProvider).getStreamUrl(next.id);
+        final url = await _resolveUrl(next);
         if (url != null) await _audio.play(url);
       } else {
         _audio.pause();
@@ -143,9 +151,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         currentSong: next,
         position: Duration.zero,
         duration: next.duration,
-        isPlaying: true,
+        isPlaying: false,
       );
-      final url = await ref.read(musicRepositoryProvider).getStreamUrl(next.id);
+      final url = await _resolveUrl(next);
       if (url != null) await _audio.play(url);
     }
   }
@@ -170,9 +178,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         currentSong: prev,
         position: Duration.zero,
         duration: prev.duration,
-        isPlaying: true,
+        isPlaying: false,
       );
-      final url = await ref.read(musicRepositoryProvider).getStreamUrl(prev.id);
+      final url = await _resolveUrl(prev);
       if (url != null) await _audio.play(url);
     }
   }

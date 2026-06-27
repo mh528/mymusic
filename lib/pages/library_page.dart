@@ -66,6 +66,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(settingsProvider);
     final libraryAsync = ref.watch(libraryProvider);
+    final allSongs = ref.watch(allSongsProvider);
     final libraryNotifier = ref.read(libraryProvider.notifier);
     final playbackNotifier = ref.read(playbackProvider.notifier);
 
@@ -129,13 +130,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
               ),
               data: (library) {
-                // All Music + empty query → empty state
-                if (_activeSource == 'All Music' && _searchQuery.isEmpty) {
-                  return _buildEmptyAllMusic();
-                }
                 return _buildContent(
                   context,
                   library: library,
+                  allSongs: allSongs,
                   visibleTabs: visibleTabs,
                   libraryNotifier: libraryNotifier,
                   playbackNotifier: playbackNotifier,
@@ -163,6 +161,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget _buildContent(
     BuildContext context, {
     required LibraryState library,
+    required List<Song> allSongs,
     required List<LibraryTab> visibleTabs,
     required LibraryNotifier libraryNotifier,
     required PlaybackNotifier playbackNotifier,
@@ -174,7 +173,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     return switch (effectiveTab) {
       LibraryTab.songs => _buildSongsList(
           context,
-          songs: _filterSongs(library.songs),
+          songs: _filterSongs(library.songs, allSongs),
           libraryNotifier: libraryNotifier,
           playbackNotifier: playbackNotifier,
           settings: settings,
@@ -197,11 +196,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     };
   }
 
-  List<Song> _filterSongs(List<Song> songs) {
+  List<Song> _filterSongs(List<Song> songs, List<Song> allSongs) {
     var filtered = switch (_activeSource) {
       'Library' => songs.where((s) => s.inLibrary).toList(),
       'Downloads' => songs.where((s) => s.isDownloaded).toList(),
-      _ => songs, // All Music — filtered by query below
+      _ => allSongs, // All Music — local + YT library songs
     };
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
@@ -410,22 +409,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildEmptyAllMusic() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.search, size: 56, color: AppColors.textMuted),
-          SizedBox(height: 16),
-          Text(
-            'Search for music',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 16),
-          ),
-        ],
-      ),
     );
   }
 

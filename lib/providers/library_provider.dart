@@ -9,7 +9,10 @@ import '../models/artist.dart';
 import '../models/playlist.dart';
 import 'local_library_provider.dart';
 import 'settings_provider.dart';
+import 'yt_library_provider.dart';
 
+/// Provides the local-file-backed repository (or mock if no folder configured).
+/// Used for library browsing and local stream URL resolution.
 final musicRepositoryProvider = Provider<MusicRepository>((ref) {
   final settings = ref.watch(settingsProvider).valueOrNull;
   if (settings?.musicSource == MusicSource.local &&
@@ -18,6 +21,20 @@ final musicRepositoryProvider = Provider<MusicRepository>((ref) {
     return LocalMusicRepository(songs);
   }
   return MockMusicRepository();
+});
+
+/// All songs merged: local scanned + YT library cache.
+final allSongsProvider = Provider<List<Song>>((ref) {
+  final libraryAsync = ref.watch(libraryProvider);
+  final localSongs = libraryAsync.valueOrNull?.songs ?? [];
+  final ytSongs = ref.watch(ytLibraryProvider).songs;
+  // Deduplicate by id in case a YT song was also downloaded to local folder
+  final seen = <String>{};
+  final merged = <Song>[];
+  for (final s in [...localSongs, ...ytSongs]) {
+    if (seen.add(s.id)) merged.add(s);
+  }
+  return merged;
 });
 
 class LibraryState {

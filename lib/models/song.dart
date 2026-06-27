@@ -16,6 +16,10 @@ class Song {
   final String? filePath;
   // Embedded album art from ID3 tags; null = use grey placeholder
   final Uint8List? albumArtBytes;
+  // YouTube video ID — null for local songs
+  final String? videoId;
+  // YouTube thumbnail URL — null for local songs
+  final String? thumbnailUrl;
 
   const Song({
     required this.id,
@@ -31,6 +35,8 @@ class Song {
     this.inQueue = false,
     this.filePath,
     this.albumArtBytes,
+    this.videoId,
+    this.thumbnailUrl,
   });
 
   Song copyWith({
@@ -40,6 +46,8 @@ class Song {
     bool? inQueue,
     String? filePath,
     Uint8List? albumArtBytes,
+    String? videoId,
+    String? thumbnailUrl,
   }) {
     return Song(
       id: id,
@@ -55,8 +63,40 @@ class Song {
       inQueue: inQueue ?? this.inQueue,
       filePath: filePath ?? this.filePath,
       albumArtBytes: albumArtBytes ?? this.albumArtBytes,
+      videoId: videoId ?? this.videoId,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'artist': artist,
+    'artistId': artistId,
+    'album': album,
+    'albumId': albumId,
+    'durationMs': duration.inMilliseconds,
+    'isDownloaded': isDownloaded,
+    'inLibrary': inLibrary,
+    'filePath': filePath,
+    'videoId': videoId,
+    'thumbnailUrl': thumbnailUrl,
+  };
+
+  factory Song.fromJson(Map<String, dynamic> j) => Song(
+    id: j['id'] as String,
+    title: j['title'] as String,
+    artist: j['artist'] as String,
+    artistId: j['artistId'] as String? ?? '',
+    album: j['album'] as String? ?? '',
+    albumId: j['albumId'] as String? ?? '',
+    duration: Duration(milliseconds: (j['durationMs'] as int?) ?? 0),
+    isDownloaded: j['isDownloaded'] as bool? ?? false,
+    inLibrary: j['inLibrary'] as bool? ?? true,
+    filePath: j['filePath'] as String?,
+    videoId: j['videoId'] as String?,
+    thumbnailUrl: j['thumbnailUrl'] as String?,
+  );
 }
 
 extension DurationFormat on Duration {

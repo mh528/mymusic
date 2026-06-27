@@ -122,6 +122,11 @@ class _SettingsBody extends ConsumerWidget {
         _SectionHeader('Local Library'),
         _LocalLibrarySection(settings: settings),
 
+        // ── YouTube Music ─────────────────────────────────
+        _SectionHeader('YouTube Music'),
+        _InfoSetting(title: 'Mode', value: 'Anonymous streaming'),
+        _InfoSetting(title: 'Login', value: 'Not required'),
+
         // ── Data ──────────────────────────────────────────
         _SectionHeader('Data'),
         _ToggleSetting(
@@ -296,14 +301,6 @@ class _LocalLibrarySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _DropdownSetting<MusicSource>(
-          title: 'Music Source',
-          description: 'Use local files or mock data',
-          value: settings.musicSource,
-          items: MusicSource.values,
-          label: (s) => s == MusicSource.local ? 'Local Files' : 'Mock Data',
-          onChanged: (v) => settingsNotifier.setMusicSource(v),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(

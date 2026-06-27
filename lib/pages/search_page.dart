@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/settings.dart';
+import '../models/song.dart';
 import '../data/music_repository.dart';
 import '../theme.dart';
 import '../components/tabs/filter_chips_row.dart';
@@ -9,8 +10,10 @@ import '../components/list_rows/song_row.dart';
 import '../components/list_rows/album_row.dart';
 import '../components/list_rows/artist_row.dart';
 import '../components/list_rows/playlist_row.dart';
+import '../providers/playback_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/yt_library_provider.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -192,12 +195,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
 
   Widget _buildResults(SearchResults results) {
+    final playback = ref.read(playbackProvider.notifier);
+    final ytLibrary = ref.read(ytLibraryProvider.notifier);
     switch (_activeTab) {
       case LibraryTab.songs:
         final songs = _filterSongs(results.songs);
         return ListView.builder(
           itemCount: songs.length,
-          itemBuilder: (_, i) => SongRow(song: songs[i]),
+          itemBuilder: (_, i) {
+            final song = songs[i];
+            final inLib = ref.watch(ytLibraryProvider).songs.any((s) => s.id == song.id);
+            return SongRow(
+              song: song.copyWith(inLibrary: inLib),
+              onTap: () => playback.playSong(song, queue: songs.cast()),
+              onMoreTap: () => _showYtSongMenu(song, inLib, ytLibrary),
+            );
+          },
         );
       case LibraryTab.albums:
         final albums = _filterAlbums(results.albums);
@@ -218,6 +231,46 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           itemBuilder: (_, i) => PlaylistRow(playlist: playlists[i]),
         );
     }
+  }
+
+  void _showYtSongMenu(Song song, bool inLibrary, YtLibraryNotifier ytLibrary) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                inLibrary ? Icons.favorite : Icons.favorite_border,
+                color: Colors.white,
+              ),
+              title: Text(
+                inLibrary ? 'Remove from Library' : 'Add to Library',
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (inLibrary) {
+                  ytLibrary.removeFromLibrary(song.id);
+                } else {
+                  ytLibrary.addToLibrary(song);
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add, color: Colors.white),
+              title: const Text('Add to Queue', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(playbackProvider.notifier).addToQueue(song);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List _filterSongs(List songs) {

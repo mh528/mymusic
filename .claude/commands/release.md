@@ -16,10 +16,13 @@ Example: `/release v1.1.0 Fixed ID3 fallback for FLAC files`
    pkill -f "flutter run" || true
    ```
 
-3. Deep clean (avoids stale Gradle cache issues):
+3. Light clean (default — preserves Gradle daemon cache, saves ~2-3 min on 8GB Mac):
    ```
-   flutter clean
-   rm -rf android/app/build android/.gradle android/app/.cxx
+   rm -rf android/app/build android/app/.cxx
+   ```
+   If the build fails with a Gradle error after this, escalate to the nuclear clean:
+   ```
+   flutter clean && rm -rf android/.gradle android/app/build android/app/.cxx
    ```
 
 4. Build the release APK (arm64 only — covers all modern Android devices, halves compile time/memory).
@@ -71,3 +74,4 @@ flutter build apk --release --target-platform android-arm64 --no-tree-shake-icon
 - **No Rust required** — ID3 parsing is pure Dart (inline in `lib/data/local_music_scanner.dart`). Do not add `metadata_god` or `audiotags` — both require rustup.
 - **arm64 only** — `--target-platform android-arm64` avoids OOM on 8GB Mac during AOT compilation. The APK works on all modern Android phones.
 - **`--no-tree-shake-icons`** — suppresses a Cupertino font warning that can interfere with the shader compilation step.
+- **Two-tier clean** — Step 3 defaults to a light clean (delete `android/app/build/` only). This preserves the Gradle daemon cache and saves ~2-3 min on 8GB RAM. Only use the nuclear clean (`flutter clean` + `android/.gradle`) when the light clean doesn't fix the error.

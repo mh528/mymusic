@@ -12,6 +12,8 @@ import '../components/list_rows/artist_row.dart';
 import '../components/list_rows/playlist_row.dart';
 import '../providers/playback_provider.dart';
 import '../providers/search_provider.dart';
+import 'album_page.dart';
+import 'artist_page.dart';
 import '../providers/settings_provider.dart';
 import '../providers/yt_library_provider.dart';
 
@@ -59,6 +61,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final searchState = ref.watch(searchProvider);
     final settingsAsync = ref.watch(settingsProvider);
     final query = _controller.text;
+
+    // Show playback errors as a snackbar
+    ref.listen(playbackProvider.select((s) => s.lastError), (_, error) {
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), duration: const Duration(seconds: 8)),
+        );
+      }
+    });
 
     return settingsAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -220,13 +231,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         final albums = _filterAlbums(results.albums);
         return ListView.builder(
           itemCount: albums.length,
-          itemBuilder: (_, i) => AlbumRow(album: albums[i]),
+          itemBuilder: (_, i) => AlbumRow(
+            album: albums[i],
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => AlbumPage(albumId: albums[i].id),
+            )),
+          ),
         );
       case LibraryTab.artists:
         final artists = _filterArtists(results.artists);
         return ListView.builder(
           itemCount: artists.length,
-          itemBuilder: (_, i) => ArtistRow(artist: artists[i]),
+          itemBuilder: (_, i) => ArtistRow(
+            artist: artists[i],
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => ArtistPage(artistId: artists[i].id),
+            )),
+          ),
         );
       case LibraryTab.playlists:
         final playlists = _filterPlaylists(results.playlists);

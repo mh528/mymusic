@@ -15,6 +15,7 @@ class PlaybackState {
   final Duration position;
   final Duration duration;
   final double volume;
+  final String? lastError;
 
   const PlaybackState({
     this.currentSong,
@@ -24,6 +25,7 @@ class PlaybackState {
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.volume = 1.0,
+    this.lastError,
   });
 
   PlaybackState copyWith({
@@ -35,6 +37,8 @@ class PlaybackState {
     Duration? position,
     Duration? duration,
     double? volume,
+    String? lastError,
+    bool clearError = false,
   }) {
     return PlaybackState(
       currentSong: clearCurrentSong ? null : (currentSong ?? this.currentSong),
@@ -44,6 +48,7 @@ class PlaybackState {
       position: position ?? this.position,
       duration: duration ?? this.duration,
       volume: volume ?? this.volume,
+      lastError: clearError ? null : (lastError ?? this.lastError),
     );
   }
 }
@@ -86,17 +91,38 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       isPlaying: false,
       position: Duration.zero,
       duration: song.duration,
+      clearError: true,
     );
-    final url = await _resolveUrl(song);
-    if (url == null) return;
-    await _audio.play(url);
+    final (url, error) = await _resolveUrl(song);
+    if (url == null) {
+      state = state.copyWith(lastError: error ?? 'Could not load stream');
+      return;
+    }
+    try {
+      await _audio.play(url);
+    } catch (e) {
+      state = state.copyWith(lastError: 'Playback error: $e');
+    }
   }
 
-  Future<String?> _resolveUrl(Song song) {
-    if (song.videoId != null) {
-      return ref.read(youtubeMusicServiceProvider).getStreamUrl(song.videoId!);
+  // Returns (url, errorMessage) — used by playSong to surface errors on screen.
+  Future<(String?, String?)> _resolveUrl(Song song) async {
+    try {
+      if (song.videoId != null) {
+        final url = await ref.read(youtubeMusicServiceProvider).getStreamUrl(song.videoId!);
+        return (url, url == null ? 'getStreamUrl returned null for ${song.videoId}' : null);
+      }
+      final url = await ref.read(musicRepositoryProvider).getStreamUrl(song.id);
+      return (url, url == null ? 'No stream URL for ${song.id}' : null);
+    } catch (e) {
+      return (null, 'Stream URL error: $e');
     }
-    return ref.read(musicRepositoryProvider).getStreamUrl(song.id);
+  }
+
+  // Silent version for skip — errors are swallowed since there's no UX to show them.
+  Future<String?> _resolveUrlSilent(Song song) async {
+    final (url, _) = await _resolveUrl(song);
+    return url;
   }
 
   void playPause() {
@@ -139,7 +165,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           duration: next.duration,
           isPlaying: false,
         );
-        final url = await _resolveUrl(next);
+        final url = await _resolveUrlSilent(next);
         if (url != null) await _audio.play(url);
       } else {
         _audio.pause();
@@ -153,7 +179,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: next.duration,
         isPlaying: false,
       );
-      final url = await _resolveUrl(next);
+      final url = await _resolveUrlSilent(next);
       if (url != null) await _audio.play(url);
     }
   }
@@ -180,7 +206,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: prev.duration,
         isPlaying: false,
       );
-      final url = await _resolveUrl(prev);
+      final url = await _resolveUrlSilent(prev);
       if (url != null) await _audio.play(url);
     }
   }

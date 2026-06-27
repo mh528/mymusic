@@ -22,9 +22,10 @@ Example: `/release v1.1.0 Fixed ID3 fallback for FLAC files`
    rm -rf android/app/build android/.gradle android/app/.cxx
    ```
 
-4. Build the release APK (arm64 only — covers all modern Android devices, halves compile time/memory):
+4. Build the release APK (arm64 only — covers all modern Android devices, halves compile time/memory).
+   **Always `cd` first** — shell cwd does not persist between tool calls, and flutter will error "No pubspec.yaml found" if run from the wrong directory:
    ```
-   flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons
+   cd /Users/michaelhayes/Documents/Code/mymusic/flutter && flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons
    ```
 
 5. APK is written to: `build/app/outputs/flutter-apk/app-release.apk`
@@ -59,6 +60,9 @@ Example: `/release v1.1.0 Fixed ID3 fallback for FLAC files`
    ```
 
 8. Report the release URL to the user.
+
+## Terminal Command
+flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons 2>&1
 
 ## Known quirks
 

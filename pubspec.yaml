@@ -2,7 +2,7 @@ name: mymusic
 description: "My Music — a clean, private music player."
 publish_to: 'none'
 
-version: 1.2.2+8
+version: 1.2.3+9
 
 environment:
   sdk: ^3.12.0

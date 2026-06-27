@@ -8,7 +8,12 @@ class AudioService {
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
 
   Future<void> play(String url) async {
-    await _player.setUrl(url);
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      final path = url.startsWith('file://') ? url.substring(7) : url;
+      await _player.setFilePath(path);
+    } else {
+      await _player.setUrl(url);
+    }
     await _player.play();
   }
 

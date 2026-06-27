@@ -2,11 +2,11 @@
 
 ## Overview
 
-The app has a complete UI shell and Riverpod state layer but no actual audio playback. This document covers the full plan for wiring real audio: first local files, then local folder library, then YouTube Music streaming.
+The app has a complete UI shell and Riverpod state layer. Audio playback is wired for both asset files and local folder libraries.
 
 **Order of implementation:**
 1. **Phase 1D** — Wire `just_audio` to asset MP3s, hear sound ✅ DONE
-2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates ✅ DONE
+2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates ✅ DONE (+ bug-fixed 2026-06-27)
 3. **Phase 2** — YouTube Music streaming via `youtube_explode_dart` (anonymous, no login)
 
 ---
@@ -14,231 +14,223 @@ The app has a complete UI shell and Riverpod state layer but no actual audio pla
 ## Key Decisions
 
 - **No login, ever** — anonymous streaming only, no YouTube account sync
-- **`youtube_explode_dart` v3.1.0** (actively maintained, May 2026) is the extraction layer for Phase 2 — same library Harmony used, but called directly since Harmony the app is deprecated
+- **`youtube_explode_dart` v3.1.0** (actively maintained, May 2026) is the extraction layer for Phase 2
 - **Local files first** — gives a fully working offline player before introducing network dependencies
-- **ID3 tags** are the source of truth for metadata (`metadata_god` package, cross-platform ID3v2.4)
-- **No SQLite** — scanned library is cached as a JSON file in app support directory; simple, human-readable, deletable to reset
+- **ID3 tags via inline Dart parser** — pure-Dart ID3v2 parser inline in `local_music_scanner.dart` (replaced `metadata_god` which required Rust/Swift Package Manager)
+- **No SQLite** — scanned library is cached as a JSON file in app support directory
 - **`file_picker`** for folder selection on Android/macOS/desktop
-
----
-
-## Biggest Challenges
-
-### Local library
-- **Permissions** — Android requires `READ_MEDIA_AUDIO` (API 33+). Need `permission_handler` package.
-- **Scan time** — large libraries can have thousands of files. Scan must be async with a progress state indicator. Run in an isolate if it blocks the UI.
-- **Missing tags** — many MP3s have incomplete ID3 tags. Fallback chain: filename → title, parent folder → album, grandparent folder → artist.
-- **Album art** — embedded art (Uint8List from `metadata_god`) must be displayed lazily to avoid loading all art into memory at once.
-- **Duplicates** — re-scanning the same folder must not duplicate entries. IDs are MD5 hash of `filePath` — stable across rescans.
-
-### YouTube Music (Phase 2)
-- **Breakage risk** — `youtube_explode_dart` calls reverse-engineered YouTube internals. YouTube changes these periodically. Mitigate by keeping the package updated and abstracting stream URL resolution behind `getStreamUrl()`.
-- **Throttling** — `n` parameter deobfuscation is handled by the library but has broken before. No mitigation except keeping the package current.
-- **No Harmony code to copy** — Harmony is a deprecated app. Use `youtube_explode_dart` directly via its current pub.dev API.
 
 ---
 
 ## Phase 1D — Wire just_audio to Asset MP3s ✅ DONE
 
-**Goal:** Drop a few MP3s into `assets/audio/`, wire `just_audio`, hear sound.
-
-### New file: `lib/data/audio_service.dart`
-
-```dart
-class AudioService {
-  final AudioPlayer _player = AudioPlayer();
-
-  Stream<Duration> get positionStream => _player.positionStream;
-  Stream<Duration?> get durationStream => _player.durationStream;
-  Stream<PlayerState> get playerStateStream => _player.playerStateStream;
-
-  Future<void> play(String url) async {
-    await _player.setUrl(url);  // works for asset://, file://, and https://
-    await _player.play();
-  }
-
-  Future<void> pause() => _player.pause();
-  Future<void> resume() => _player.play();
-  Future<void> seek(Duration position) => _player.seek(position);
-  Future<void> setVolume(double v) => _player.setVolume(v);
-  void dispose() => _player.dispose();
-}
-```
-
-### `Song` model — add `filePath` field
-
-```dart
-final String? filePath;  // null = no local file; asset:// or file:// path when available
-```
-
-`copyWith` updated to include `filePath`.
-
-### Wire `PlaybackNotifier` to `AudioService`
-
-- `playSong()` → `audioService.play(song.filePath)`
-- `playPause()` → `audioService.pause()` / `audioService.resume()`
-- `skipNext()` / `skipPrevious()` → `audioService.play()` on the new song
-- `audioService.positionStream` → drives `playbackProvider.setPosition()`
-- `audioService.durationStream` → drives `playbackProvider` duration state
-
-### `MockMusicRepository.getStreamUrl()`
-
-Return `'asset:///assets/audio/<filename>.mp3'` for songs with a matching asset file. Return null for others — UI should grey out the play button when filePath is null.
-
-### Auto-navigate to Queue on song tap
-
-Controlled by the existing `AppSettings.autoOpenQueue` setting (already in the model and Settings UI). When true, tapping a song in the library calls `context.go('/queue')` after `playSong()`. Default is off so users keep their place. Setting label: "Auto Open Queue — Switch to Queue tab when a song starts".
+Asset MP3 in `assets/audio/`, `just_audio` wired via `AudioService`, playback provider driving live progress bar.
 
 ---
 
-## Phase 1E — Local Folder Library
+## Phase 1E — Local Folder Library ✅ DONE
 
-**Goal:** User adds a folder in Settings → app scans it → library populates with real music organized by Artist/Album from ID3 tags.
+User picks a folder in Settings → app scans for MP3/FLAC/M4A/AAC/WAV/OGG → reads ID3v2 tags → builds library → JSON cache for cold-launch restore.
 
-### New packages
+### What's actually implemented (differs from original plan)
 
-Add to `pubspec.yaml`:
-- `metadata_god: ^1.1.0` — ID3v2.4 tags, cross-platform
-- `file_picker: ^11.0.2` — native folder picker dialog
-- `permission_handler: ^11.0.0` — Android storage permissions
-- `path_provider: ^2.1.0` — `getApplicationSupportDirectory()` for JSON cache
+- `metadata_god` was dropped — replaced with ~100-line pure-Dart ID3v2 parser inline in `local_music_scanner.dart`
+- Single folder (not list) — `AppSettings.localMusicFolder` (string, not list)
+- `MusicSource` enum (`mock` | `local`) — explicit toggle in Settings rather than auto-detecting from folder presence
+- `musicRepositoryProvider` in `library_provider.dart` — uses `ref.watch` so library rebuilds on scan completion
+- Cold-launch cache restore via `initFromSettings()` called from `AppShell` in `app.dart`
+- Android: `MANAGE_EXTERNAL_STORAGE` permission required for `dart:io` to read arbitrary folder paths
 
-### Settings changes
+### Bug fixes applied 2026-06-27
 
-Add to `AppSettings` (`lib/models/settings.dart`):
-```dart
-final List<String> localMusicFolders;
-```
+| Bug | Fix |
+|-----|-----|
+| Library never refreshed after scan | `LibraryNotifier.build()` used `ref.read` — changed to `ref.watch` |
+| Local files silent / error | Scanner stored `file://$path`; `just_audio` needs raw path via `setFilePath()` |
+| Library wiped on every settings save | `localLibraryProvider.build()` watched settings and reset state; replaced with `initFromSettings()` + `_cacheLoaded` flag |
+| Cache never loaded on cold launch | `initFromSettings` was Settings-page-only; moved to `AppShell` |
+| Wrong Android permission | `Permission.audio` → `Permission.manageExternalStorage` + manifest entry |
 
-Add to `SettingsRepository` (`lib/data/settings_repository.dart`): persist `localMusicFolders` as a JSON-encoded list in SharedPreferences.
+### Remaining Phase 1E gaps
 
-Add to Settings UI (`lib/pages/settings_page.dart`) — new "Local Library" section:
-- **Add Music Folder** button → `FilePicker.platform.getDirectoryPath()` → appends path
-- List of configured folders with red × remove button
-- **Rescan Library** button → triggers re-scan and cache refresh
-
-### New file: `lib/data/local_music_scanner.dart`
-
-```dart
-class LocalMusicScanner {
-  static const _audioExtensions = {'.mp3', '.flac', '.m4a', '.aac', '.wav', '.ogg'};
-
-  Future<List<Song>> scan(List<String> folderPaths) async {
-    // For each folder: list files recursively
-    // Filter by extension
-    // For each file: MetadataGod.readMetadata(path)
-    // Build Song from tags with fallbacks (see below)
-    // Return flat Song list
-  }
-}
-```
-
-**Folder structure:** Accept any layout — flat or nested Artist/Album/Track. ID3 tags always win. Fallback chain for missing/empty tags:
-1. `title` → filename without extension
-2. `artist` → grandparent folder name (or "Unknown Artist")
-3. `album` → parent folder name (or "Unknown Album")
-4. `year` → null (omit from display)
-5. `albumArt` → null (grey `ArtThumbnail` placeholder — already handled by the existing widget)
-
-### Library cache — JSON file (no SQLite)
-
-After scanning, serialize the song list to a JSON file:
-- **Path:** `getApplicationSupportDirectory()/local_library_cache.json`
-- **On launch:** read cache → populate library instantly, no scan delay
-- **Cache invalidation:** user taps "Rescan Library", or app detects folder mtime changed
-- **First launch / cache miss:** run scan, write cache, populate library
-
-Human-readable, no schema, deletable to reset state.
-
-### New provider: `lib/providers/local_library_provider.dart`
-
-```dart
-// State: { isScanning: bool, songs: List<Song>, error: String? }
-// On init: read JSON cache; if no cache and localMusicFolders non-empty, run scan
-// Exposes: allSongs, songsByAlbum(albumId), songsByArtist(artistId)
-```
-
-Song IDs: MD5 hash of `filePath` — stable across rescans, no collisions.
-
-### How albums and artists are organized
-
-Derived at query time from the flat song list — no separate tables needed:
-
-```dart
-// Albums: group songs by (artistName + albumName), use first song's metadata
-// Artists: group songs by artistName
-```
-
-### New file: `lib/data/local_music_repository.dart`
-
-Implements `MusicRepository`. Backed by `localLibraryProvider` song list.
-- `getAllSongs()` → all scanned songs, sorted by title
-- `getAllAlbums()` → derived album list
-- `getAllArtists()` → derived artist list
-- `getStreamUrl(songId)` → `'file://${song.filePath}'`
-- `search(query)` → substring match across title/artist/album
-
-### Repository switching in `main.dart`
-
-```dart
-final repositoryProvider = Provider<MusicRepository>((ref) {
-  final settings = ref.watch(settingsProvider);
-  if (settings.localMusicFolders.isNotEmpty) {
-    return LocalMusicRepository(ref.watch(localLibraryProvider));
-  }
-  return MockMusicRepository();
-});
-```
-
-Mock data remains the default until the user adds a folder.
+- Album art (`albumArtBytes`) read into Song but not displayed — `ArtThumbnail` shows grey placeholder
+- `autoOpenQueue` setting wired in model/Settings UI but not implemented in playback
+- `defaultLibraryTab` not applied on Library page init
 
 ---
 
 ## Phase 2 — YouTube Music Streaming
 
-**After Phase 1 is fully working.**
+**Prerequisites:** Phase 1E on-device test passes (local files play correctly).
 
-### New packages
+### Goal
+
+Search YouTube Music anonymously, get a CDN audio stream URL, pass it to `just_audio`. No login, no account, no Google Play Services.
+
+### Package
 
 ```yaml
 youtube_explode_dart: ^3.1.0
 ```
 
-Handles cipher deobfuscation, `n` parameter throttling, and format selection automatically.
+Handles cipher deobfuscation, `n` parameter throttling, and format selection. Check pub.dev for latest version before adding.
 
-### New files
+### New files to create
 
-- `lib/data/youtube_explode_service.dart` — singleton `YoutubeExplode()` instance, lifecycle management
-- `lib/data/youtube_music_repository.dart` — implements `MusicRepository`
+**`lib/data/youtube_music_service.dart`**
 
-### Key API usage
+Singleton wrapper around `YoutubeExplode`. Manages lifecycle (close on dispose).
 
 ```dart
-// Search
-final yt = YoutubeExplode();
-final results = await yt.search.search(query);
-// For YouTube Music specifically:
-// final results = await yt.music.search(query);
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
-// Stream URL — pass directly to just_audio
-final manifest = await yt.videos.streams.getManifest(videoId);
-final audio = manifest.audioOnly.withHighestBitrate();
-return audio.url.toString();  // Google CDN URL — no ads, no YouTube player
+class YouTubeMusicService {
+  final _yt = YoutubeExplode();
+
+  Future<List<Song>> search(String query) async {
+    final results = await _yt.search.search(query);
+    return results.map(_videoToSong).toList();
+  }
+
+  Future<String?> getStreamUrl(String videoId) async {
+    final manifest = await _yt.videos.streams.getManifest(videoId);
+    final audio = manifest.audioOnly.withHighestBitrate();
+    return audio.url.toString();
+  }
+
+  Song _videoToSong(Video v) => Song(
+    id: v.id.value,
+    title: v.title,
+    artist: v.author,
+    artistId: v.channelId.value,
+    album: '',
+    albumId: '',
+    duration: v.duration ?? const Duration(minutes: 3, seconds: 30),
+    filePath: null, // resolved lazily via getStreamUrl()
+  );
+
+  void dispose() => _yt.close();
+}
 ```
 
-The CDN URL goes straight into `audioService.play()` — `just_audio` streams it directly. No YouTube player, no ad system, no Google Play Services required.
+**`lib/data/youtube_music_repository.dart`**
 
-### Source toggle in Settings
+Implements `MusicRepository`. Stream URLs are resolved on-demand in `getStreamUrl()` — not stored on the Song, since CDN URLs expire.
 
-Add to `AppSettings`:
 ```dart
-enum MusicSource { local, youtubeMusic }
-final MusicSource musicSource;
+class YouTubeMusicRepository implements MusicRepository {
+  final YouTubeMusicService _svc;
+  YouTubeMusicRepository(this._svc);
+
+  @override
+  Future<String?> getStreamUrl(String songId) => _svc.getStreamUrl(songId);
+
+  @override
+  Future<SearchResults> search(String query) async {
+    final songs = await _svc.search(query);
+    return SearchResults(songs: songs, albums: [], artists: []);
+  }
+
+  // getAllSongs / getAllAlbums etc. return [] — YT library is search-driven, not browsable
+  @override Future<List<Song>> getAllSongs() async => [];
+  @override Future<List<Album>> getAllAlbums() async => [];
+  @override Future<List<Artist>> getAllArtists() async => [];
+  // ... other stubs
+}
 ```
 
-`repositoryProvider` selects implementation based on this setting. Settings UI gets a "Music Source" toggle.
+### Settings change
 
-**No login. No account sync. No cookies. Anonymous streaming only.**
+`MusicSource` enum already has `mock` and `local`. Add `youtube`:
+
+```dart
+// lib/models/settings.dart
+enum MusicSource { mock, local, youtube }
+```
+
+Update `SettingsRepository` (the int index serialization handles new values automatically via `.clamp()`).
+
+Update Settings UI dropdown label:
+
+```dart
+label: (s) => switch (s) {
+  MusicSource.mock => 'Mock Data',
+  MusicSource.local => 'Local Files',
+  MusicSource.youtube => 'YouTube Music',
+}
+```
+
+### Repository switcher update
+
+In `lib/providers/library_provider.dart`, extend `musicRepositoryProvider`:
+
+```dart
+final musicRepositoryProvider = Provider<MusicRepository>((ref) {
+  final settings = ref.watch(settingsProvider).valueOrNull;
+  switch (settings?.musicSource) {
+    case MusicSource.local:
+      if (settings?.localMusicFolder != null) {
+        final songs = ref.watch(localLibraryProvider).songs;
+        return LocalMusicRepository(songs);
+      }
+    case MusicSource.youtube:
+      final svc = ref.watch(youtubeMusicServiceProvider);
+      return YouTubeMusicRepository(svc);
+    default:
+      break;
+  }
+  return MockMusicRepository();
+});
+
+final youtubeMusicServiceProvider = Provider((ref) {
+  final svc = YouTubeMusicService();
+  ref.onDispose(svc.dispose);
+  return svc;
+});
+```
+
+### Playback change for YouTube songs
+
+`PlaybackNotifier.playSong()` currently calls `audioService.play(song.filePath)`. For YouTube songs, `filePath` is null — stream URL must be fetched first:
+
+```dart
+Future<void> playSong(Song song) async {
+  String? url = song.filePath;
+  if (url == null) {
+    url = await ref.read(musicRepositoryProvider).getStreamUrl(song.id);
+  }
+  if (url == null) return; // unplayable
+  await _audioService.play(url);
+  // update state...
+}
+```
+
+`AudioService.play()` already handles `https://` URLs via `setUrl()` — no changes needed there.
+
+### Search wiring
+
+`SearchNotifier` currently calls `repo.search(query)`. This already works — `YouTubeMusicRepository.search()` returns real results. The Search page UI is already built.
+
+### Implementation order for Phase 2
+
+1. Add `youtube_explode_dart` to `pubspec.yaml`, run `flutter pub get`
+2. Create `youtube_music_service.dart`
+3. Create `youtube_music_repository.dart` 
+4. Add `MusicSource.youtube` to enum + update Settings label
+5. Add `youtubeMusicServiceProvider` + extend `musicRepositoryProvider` switch
+6. Update `PlaybackNotifier.playSong()` to fetch stream URL when `filePath == null`
+7. Test: Settings → Music Source → YouTube Music → Search → tap result → plays
+
+---
+
+## Biggest Challenges
+
+### Phase 2 risks
+
+- **Breakage** — `youtube_explode_dart` calls reverse-engineered YouTube internals. Keep the package updated. Breakage is detected quickly (search stops returning results or streams 403).
+- **CDN URL expiry** — stream URLs expire in ~6 hours. Never cache them; always call `getStreamUrl()` at play time.
+- **Throttling** — `n` parameter deobfuscation is handled by the library. No mitigation except keeping the package current.
+- **Rate limits** — anonymous requests are throttled more aggressively than logged-in ones. No mitigation; just keep searches reasonable.
 
 ---
 
@@ -256,31 +248,18 @@ The app requests the media stream directly, bypassing the player and ad system e
 
 ---
 
-## Files to create / modify
+## Verification checklist
 
-| File | Change |
-|------|--------|
-| `pubspec.yaml` | Add `metadata_god`, `file_picker`, `permission_handler`, `path_provider` |
-| `lib/models/song.dart` | Add `filePath` field |
-| `lib/models/settings.dart` | Add `localMusicFolders`, `MusicSource` enum |
-| `lib/data/audio_service.dart` | New — wraps `just_audio` |
-| `lib/data/local_music_scanner.dart` | New — folder scan + ID3 extraction |
-| `lib/data/local_music_repository.dart` | New — implements `MusicRepository` |
-| `lib/providers/playback_provider.dart` | Wire to `AudioService` |
-| `lib/providers/local_library_provider.dart` | New — scan state + JSON cache |
-| `lib/data/settings_repository.dart` | Persist `localMusicFolders` |
-| `lib/pages/settings_page.dart` | Add Local Library section + Music Source toggle |
-| `lib/main.dart` | Add `repositoryProvider` switcher |
-| `assets/audio/` | Drop 2-3 MP3s for Phase 1D testing |
-| `android/app/src/main/AndroidManifest.xml` | Add `READ_MEDIA_AUDIO` permission |
+### Phase 1E (local files)
+1. Settings → Choose folder → pick a folder with MP3s → scan shows count
+2. Library tab → shows scanned songs (not mock data)
+3. Tap a song → plays audio
+4. Kill + reopen app → library reloads from cache (no rescan)
+5. Rescan → no duplicates
 
----
-
-## Verification
-
-1. **Asset playback:** Drop an MP3 in `assets/audio/`, tap a mock song → audio plays, progress bar moves live
-2. **Local folder (Android/macOS):** Settings → Add Music Folder → pick folder with MP3s → Library shows real tracks → tap one → plays
-3. **ID3 fallback:** MP3 with no tags → appears with filename as title, folder as album
-4. **Re-scan:** Tap Rescan → library refreshes without duplicates
-5. **Web mode:** `flutter run -d web-server` → mock library still works; Local Library section in Settings shows "not supported on web"
-6. **`flutter analyze`** — zero errors before any push
+### Phase 2 (YouTube Music)
+1. Settings → Music Source → YouTube Music
+2. Search tab → type an artist name → results appear
+3. Tap a result → audio starts playing within ~2s (stream URL fetch)
+4. Progress bar advances, skip works
+5. Switch back to Local Files → local library reappears

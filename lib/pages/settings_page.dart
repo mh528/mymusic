@@ -63,6 +63,12 @@ class _SettingsBody extends ConsumerWidget {
           value: settings.autoOpenQueue,
           onChanged: notifier.setAutoOpenQueue,
         ),
+        _ToggleSetting(
+          title: 'Volume Slider',
+          description: 'Show volume slider in Now Playing section on Queue screen',
+          value: settings.showQueueVolumeSlider,
+          onChanged: notifier.setShowQueueVolumeSlider,
+        ),
 
         // ── Navigation / Tabs ─────────────────────────────
         _SectionHeader('Navigation & Tabs'),
@@ -390,8 +396,8 @@ class _LocalLibrarySection extends ConsumerWidget {
     SettingsNotifier settingsNotifier,
     LocalLibraryNotifier localLibraryNotifier,
   ) async {
-    // Request Android storage permission
-    final status = await Permission.audio.request();
+    // Request broad storage access so dart:io can read arbitrary folder paths
+    final status = await Permission.manageExternalStorage.request();
     if (status.isDenied || status.isPermanentlyDenied) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -217,4 +217,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
   void clearQueue() {
     state = state.copyWith(queue: []);
   }
+
+  void shuffleQueue() {
+    final queue = List<Song>.from(state.queue)..shuffle();
+    state = state.copyWith(queue: queue);
+  }
 }

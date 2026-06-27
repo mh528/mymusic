@@ -60,7 +60,7 @@ class LocalMusicScanner {
         album: album,
         albumId: albumId,
         duration: tags?.duration ?? const Duration(minutes: 3, seconds: 45),
-        filePath: 'file://$path',
+        filePath: path,
         albumArtBytes: tags?.albumArt,
         inLibrary: true,
         isDownloaded: true,
@@ -139,10 +139,13 @@ Future<_ID3Tags?> _readID3Tags(File file) async {
       final frameData = bytes.sublist(pos, pos + frameSize);
       pos += frameSize;
 
-      if (frameId == 'TIT2') title = _decodeText(frameData);
-      else if (frameId == 'TPE1') artist = _decodeText(frameData);
-      else if (frameId == 'TALB') album = _decodeText(frameData);
-      else if (frameId == 'TLEN') {
+      if (frameId == 'TIT2') {
+        title = _decodeText(frameData);
+      } else if (frameId == 'TPE1') {
+        artist = _decodeText(frameData);
+      } else if (frameId == 'TALB') {
+        album = _decodeText(frameData);
+      } else if (frameId == 'TLEN') {
         final ms = int.tryParse(_decodeText(frameData) ?? '');
         if (ms != null && ms > 0) duration = Duration(milliseconds: ms);
       } else if (frameId == 'APIC' && albumArt == null) {
@@ -196,12 +199,12 @@ Uint8List? _decodeApic(Uint8List data) {
     // encoding(1) + mime(variable, null-terminated) + picture_type(1) + description(variable, null-terminated) + data
     int pos = 1; // skip encoding byte
     // skip mime type (null-terminated)
-    while (pos < data.length && data[pos] != 0) pos++;
+    while (pos < data.length && data[pos] != 0) { pos++; }
     pos++; // skip null
     if (pos >= data.length) return null;
     pos++; // skip picture type
     // skip description (null-terminated)
-    while (pos < data.length && data[pos] != 0) pos++;
+    while (pos < data.length && data[pos] != 0) { pos++; }
     pos++; // skip null
     if (pos >= data.length) return null;
     return data.sublist(pos);

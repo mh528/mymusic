@@ -2,13 +2,14 @@
 
 **Last Updated:** 2026-06-27  
 **Dev Server:** `flutter run -d web-server --web-port=9090` → http://localhost:9090  
-**Build APK:** `flutter build apk --release`
+**Build APK:** `flutter build apk --release`  
+**Release APK:** `flutter build apk --release --target-platform android-arm64`
 
 ---
 
-## Current State: Phase 1E Complete — Local Library Wired, Ready for APK Test
+## Current State: Phase 1E Bug-Fixed — Ready for On-Device Test
 
-Phase 1D (asset audio playback) and Phase 1E (local folder library) are both complete. The app now scans a real music folder, reads ID3 tags, builds a live library, and plays back local files. Mock data is still the default. An APK build + on-device test is the appropriate next step before continuing.
+Phase 1D (asset playback) and Phase 1E (local folder library) are complete. A batch of bugs found during post-release audit have been fixed. The app should now correctly show scanned songs in the library and play them. APK rebuild + on-device test is the next step.
 
 ---
 
@@ -18,105 +19,77 @@ Phase 1D (asset audio playback) and Phase 1E (local folder library) are both com
 - Flutter project scaffolded at `/Users/michaelhayes/Documents/Code/mymusic/flutter/`
 - Package: `com.mymusic.app` | App name: My Music
 - Theme: black/white/grey only, red for destructive — `lib/theme.dart`
-- Dependencies: go_router, flutter_riverpod, just_audio, shared_preferences, dio, metadata_god, file_picker, permission_handler, path_provider, crypto
-
-### Design Tokens
-- `AppColors` — all color tokens in `lib/theme.dart`
-- `AppTextStyles` — semantic typography tokens
-- `FilterChipsRow` and `ContentTabBar` both pull from `AppTextStyles`
-
-### Shared Button Components (`lib/components/buttons.dart`)
-- `AppIconButton`, `AppButtonBar`, `AppGhostButton`
+- Dependencies: go_router, flutter_riverpod, just_audio, shared_preferences, file_picker, permission_handler, path_provider, crypto
 
 ### Data Layer
 - All models: `Song` (with `filePath`, `albumArtBytes`), `Album`, `Artist`, `Playlist`, `LivePerformance`, `Video`, `AppSettings` (with `localMusicFolder`, `musicSource`)
 - Mock data: 3 artists, 3 albums, 12 songs, 2 playlists — `lib/data/mock_data.dart`
-- Abstract `MusicRepository` interface — Phase 2 swap point
+- Abstract `MusicRepository` interface
 - `MockMusicRepository` — returns mock data
 - `LocalMusicRepository` — implements `MusicRepository` from scanned song list; derives Albums/Artists at query time
-- `SettingsRepository` — reads/writes SharedPreferences (incl. `localMusicFolder`, `musicSource`)
+- `SettingsRepository` — reads/writes SharedPreferences
 
 ### Audio Playback (Phase 1D ✅)
-- `AudioService` — wraps `just_audio`, handles asset://, file://, and https:// URLs
+- `AudioService` at `lib/data/audio_service.dart` — wraps `just_audio`
+  - Uses `setFilePath()` for local paths (`/...`), `setUrl()` for remote/asset URLs
 - `PlaybackNotifier` wired to `AudioService` — play, pause, skip next/prev, seek, volume
 - Position and duration streams drive live progress bar in Queue page
-- One MP3 asset in `assets/audio/` for testing
 
 ### Local Folder Library (Phase 1E ✅)
-- `LocalMusicScanner` — async folder scan, ID3 tag reading via `metadata_god`, fallback chain (filename/folder for missing tags), stable MD5 song IDs
+- `LocalMusicScanner` — async folder scan, pure-Dart inline ID3v2 parser, fallback chain (filename/folder for missing tags), stable MD5 song IDs
 - `LocalMusicRepository` — `MusicRepository` implementation backed by scanned song list
 - `localLibraryProvider` — scan state (isScanning, progress count, error), JSON cache at app support directory
-- `musicRepositoryProvider` in `library_provider.dart` — switches to `LocalMusicRepository` when `musicSource == MusicSource.local` and a folder is configured; otherwise falls back to mock
+- `musicRepositoryProvider` in `library_provider.dart` — uses `ref.watch` (not `ref.read`) so it rebuilds when songs update or source changes
+- Cold-launch cache restore wired in `AppShell` (`app.dart`) via `ref.listen(settingsProvider)` → `initFromSettings()`
 - Settings → Local Library section: folder picker, scan progress indicator, song count, Rescan button, Music Source dropdown
 
-### State Providers (Riverpod)
-- `settingsProvider` — all app settings with live updates (incl. `setMusicSource`, `setLocalMusicFolder`)
-- `libraryProvider` — songs/albums/artists/playlists, download state (1500ms sim)
-- `playbackProvider` — current song, queue, isPlaying, repeat mode, volume, live position/duration
-- `searchProvider` — query, results, history (max 10)
-- `localLibraryProvider` — scan state + JSON cache
+### Bug Fixes Applied (2026-06-27)
+- **Library never refreshed** — `LibraryNotifier.build()` used `ref.read` instead of `ref.watch` for `musicRepositoryProvider`
+- **Playback failed on local files** — scanner stored `file://$path`; `just_audio` requires raw path via `setFilePath()`. Fixed in scanner + `AudioService`
+- **Library wiped on every settings save** — `localLibraryProvider.build()` watched `settingsProvider` and reset state to empty on every rebuild. Replaced with `initFromSettings()` + `_cacheLoaded` flag
+- **Cold-launch cache never loaded** — `initFromSettings` was only called from Settings page. Moved to `AppShell` so it runs on every launch
+- **Android permission wrong** — changed `Permission.audio` → `Permission.manageExternalStorage`; added `MANAGE_EXTERNAL_STORAGE` to `AndroidManifest.xml`
 
-### Pages (all exist, partially wired)
-- `LibraryPage` — filter chips, content tabs, search, list rows
-- `QueuePage` — Up Next reorderable list, Now Playing, live progress bar, controls
-- `SearchPage` — search field, filter chips, result tabs, history
-- `SettingsPage` — all toggles/dropdowns + Local Library section
-- `AlbumPage`, `ArtistPage`, `PlaylistPage` — detail pages
-
-### Components
-- `ArtThumbnail`, `DownloadButton`, `FilterChipsRow`, `ContentTabBar`
-- All list rows: `SongRow`, `AlbumRow`, `ArtistRow`, `PlaylistRow`, `QueueItemRow`, `LivePerformanceRow`, `VideoRow`
-- All 6 context menus wired
-- Lyrics drawer, Create/Edit/AddToPlaylist dialogs
-
-### Navigation
+### Pages & Navigation
+- All 4 pages: Library, Queue, Search, Settings
+- Detail pages: Album, Artist, Playlist
 - GoRouter with `StatefulShellRoute.indexedStack` — 4 tabs preserve back stack
-- Sub-routes: `/library/album/:id`, `/library/artist/:id`, `/library/playlist/:id`
-- Album/Artist/Playlist drill-in from Library taps wired
+- Album/Artist/Playlist drill-in from Library wired
 
 ### Android
-- `READ_MEDIA_AUDIO` + `READ_EXTERNAL_STORAGE` (≤ API 32) permissions in AndroidManifest.xml
+- `READ_MEDIA_AUDIO` + `READ_EXTERNAL_STORAGE` (≤ API 32) + `MANAGE_EXTERNAL_STORAGE` in AndroidManifest.xml
 
 ---
 
 ## What's Pending 🔴
 
-### On-Device Testing (do this before continuing)
-- Build APK and install on Android device
-- Test: mock data plays (asset MP3)
-- Test: Settings → pick a music folder → scan runs → library shows real tracks → tap a song → plays
-- Test: Rescan doesn't duplicate entries
-- Test: folder picker permission request on Android 13+
+### On-Device Test (do this first)
+- Rebuild APK with bug fixes and install
+- Test: Settings → pick a music folder → scan runs → library shows real tracks
+- Test: tap a song → plays audio (not silence)
+- Test: kill app, reopen → library reloads from cache without rescanning
+- Test: Rescan → no duplicates
+
+### UI Polish
+- Album art (`albumArtBytes`) embedded in Song but `ArtThumbnail` still shows grey placeholder — wire `Image.memory(albumArtBytes)` when non-null
+- `defaultLibraryTab` setting not applied on Library page init
+- `autoOpenQueue` setting not implemented — tapping a song doesn't switch to Queue tab
 
 ### Navigation Wiring
 - Search results → drill-in routes not connected
-- Context menu "View Album" / "View Artist" → push route
+- Context menu "View Album" / "View Artist" on detail pages → push route
 - Back buttons on detail pages (deep-link entry has no back)
 
-### Context Menu Wiring (detail pages)
-- Album/Artist/Playlist page header ⋮ callbacks are stubs
-- SongRow ⋮ on ArtistPage and AlbumPage not wired
-
-### Local Library — On-Device Gaps
-- `localLibraryProvider` loads cache on scan but doesn't auto-load cache on cold launch (needs to be triggered from app init when a folder is configured)
-- Album art (`albumArtBytes`) stored in Song but not yet displayed in `ArtThumbnail` — grey placeholder still used
-
-### Settings Polish
-- `defaultOpenPage` not applied on cold launch
-- `defaultLibraryTab` not applied on Library page init
-- `autoOpenQueue` not implemented
-
-### Phase 2
-- YouTube Music streaming via `youtube_explode_dart`
+### Phase 2 — YouTube Music
+- See `ytmusic.md` Phase 2 section
 
 ---
 
 ## Known Issues 🟡
 
 - `RepeatMode` name conflict with Flutter's internal `RepeatMode` — resolved with import alias in queue_page
-- `metadata_god` does not support Swift Package Manager (uses CocoaPods) — warning at build time, non-fatal
-- `just_audio` not supported on web (audio plays on Android/iOS/macOS only)
-- Local library folder picker and scan not available on web — mock data remains active
+- `just_audio` not supported on web — mock data fallback works, local library section hidden on web
+- `MANAGE_EXTERNAL_STORAGE` requires user to grant "All files access" in Android settings on API 30+ — the permission dialog may redirect to system settings instead of showing inline
 
 ---
 
@@ -124,21 +97,21 @@ Phase 1D (asset audio playback) and Phase 1E (local folder library) are both com
 
 ```
 lib/
-├── main.dart                    # Entry point — MetadataGod.initialize() + ProviderScope
-├── app.dart                     # GoRouter + AppShell + NavigationBar
+├── main.dart                    # Entry point — ProviderScope
+├── app.dart                     # GoRouter + AppShell (wires cold-launch cache init)
 ├── theme.dart                   # AppColors, AppTextStyles, appTheme
 ├── models/                      # Song, Album, Artist, Playlist, AppSettings, etc.
 ├── data/
 │   ├── music_repository.dart    # Abstract interface
 │   ├── mock_music_repository.dart
 │   ├── mock_data.dart
-│   ├── local_music_scanner.dart  # ID3 scan + fallback chain
-│   ├── local_music_repository.dart # MusicRepository from scanned songs
-│   ├── audio_service.dart        # just_audio wrapper
+│   ├── local_music_scanner.dart  # Inline ID3v2 parser + fallback chain
+│   ├── local_music_repository.dart
+│   ├── audio_service.dart        # just_audio wrapper (setFilePath for local, setUrl for remote)
 │   └── settings_repository.dart
 ├── providers/
-│   ├── library_provider.dart    # musicRepositoryProvider (switches mock ↔ local)
-│   ├── local_library_provider.dart # scan state + JSON cache
+│   ├── library_provider.dart    # musicRepositoryProvider (ref.watch — switches mock ↔ local)
+│   ├── local_library_provider.dart # scan state + JSON cache + initFromSettings()
 │   ├── playback_provider.dart
 │   ├── search_provider.dart
 │   └── settings_provider.dart
@@ -146,7 +119,7 @@ lib/
 │   ├── library_page.dart
 │   ├── queue_page.dart
 │   ├── search_page.dart
-│   ├── settings_page.dart       # Includes Local Library section
+│   ├── settings_page.dart
 │   ├── album_page.dart
 │   ├── artist_page.dart
 │   └── playlist_page.dart

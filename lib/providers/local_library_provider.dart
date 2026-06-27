@@ -5,7 +5,6 @@ import 'package:path_provider/path_provider.dart';
 import '../data/local_music_scanner.dart';
 import '../models/settings.dart';
 import '../models/song.dart';
-import 'settings_provider.dart';
 
 class LocalLibraryState {
   final bool isScanning;
@@ -41,16 +40,21 @@ final localLibraryProvider =
 
 class LocalLibraryNotifier extends Notifier<LocalLibraryState> {
   static const _cacheFileName = 'local_library_cache.json';
+  bool _cacheLoaded = false;
 
   @override
   LocalLibraryState build() {
-    // Watch settings so we auto-load cache when a folder is configured on cold launch
-    final settings = ref.watch(settingsProvider).valueOrNull;
-    if (settings?.musicSource == MusicSource.local &&
-        settings?.localMusicFolder != null) {
-      Future.microtask(loadCache);
-    }
     return const LocalLibraryState();
+  }
+
+  /// Call once after settings load to restore cache from a previous session.
+  Future<void> initFromSettings(AppSettings settings) async {
+    if (_cacheLoaded) return;
+    if (settings.musicSource == MusicSource.local &&
+        settings.localMusicFolder != null) {
+      _cacheLoaded = true;
+      await loadCache();
+    }
   }
 
   /// Load from JSON cache. Call this on app start if a music folder is configured.

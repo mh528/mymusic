@@ -6,12 +6,14 @@ class QueueItemRow extends StatelessWidget {
   final Song song;
   final int position;
   final VoidCallback? onMoreTap;
+  final VoidCallback? onRemoveTap;
 
   const QueueItemRow({
     required Key key,
     required this.song,
     required this.position,
     this.onMoreTap,
+    this.onRemoveTap,
   }) : super(key: key);
 
   @override
@@ -22,13 +24,15 @@ class QueueItemRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
         child: Row(
           children: [
-            SizedBox(
-              width: AppSpacing.xxl,
-              child: Text(
-                '$position',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.positionNumber,
+            IconButton(
+              icon: const Icon(
+                Icons.remove_circle_outline,
+                color: AppColors.textMuted,
+                size: AppIconSize.sm,
               ),
+              onPressed: onRemoveTap,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(

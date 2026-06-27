@@ -54,7 +54,7 @@ final libraryProvider =
 class LibraryNotifier extends AsyncNotifier<LibraryState> {
   @override
   Future<LibraryState> build() async {
-    final repo = ref.read(musicRepositoryProvider);
+    final repo = ref.watch(musicRepositoryProvider);
     final results = await Future.wait([
       repo.getAllSongs(),
       repo.getAllAlbums(),

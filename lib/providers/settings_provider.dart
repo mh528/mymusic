@@ -48,6 +48,9 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   void setMusicSource(MusicSource src) =>
       _update((s) => s.copyWith(musicSource: src));
 
+  void setShowQueueVolumeSlider(bool v) =>
+      _update((s) => s.copyWith(showQueueVolumeSlider: v));
+
   void setLocalMusicFolder(String? path) => _update((s) => path != null
       ? s.copyWith(localMusicFolder: path)
       : s.copyWith(clearLocalMusicFolder: true));

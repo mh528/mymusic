@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../models/settings.dart' as app_settings;
 import '../theme.dart';
 import '../components/art_thumbnail.dart';
+import '../components/buttons.dart';
 import '../components/list_rows/queue_item_row.dart';
 import '../components/menus/queue_item_context_menu.dart';
 import '../components/menus/now_playing_more_menu.dart';
 import '../components/drawers/lyrics_drawer.dart';
 import '../providers/playback_provider.dart';
+import '../providers/settings_provider.dart';
 
 class QueuePage extends ConsumerWidget {
   const QueuePage({super.key});
@@ -24,57 +27,6 @@ class QueuePage extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Up Next',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: queue.isEmpty
-                  ? _EmptyQueue()
-                  : ReorderableListView.builder(
-                      itemCount: queue.length,
-                      onReorderItem: (oldIndex, newIndex) {
-                        ref
-                            .read(playbackProvider.notifier)
-                            .reorderQueue(oldIndex, newIndex);
-                      },
-                      itemBuilder: (_, index) {
-                        final song = queue[index];
-                        return QueueItemRow(
-                          key: ValueKey(song.id + index.toString()),
-                          song: song,
-                          position: index + 1,
-                          onMoreTap: () => showQueueItemContextMenu(
-                            context,
-                            song,
-                            onAddToLibrary: () {},
-                            onAddToPlaylist: () {},
-                            onDownload: () {},
-                            onPlayNext: () {},
-                            onRemoveFromQueue: () {
-                              ref
-                                  .read(playbackProvider.notifier)
-                                  .removeFromQueue(song.id);
-                            },
-                            onShare: () {},
-                            onStartRadio: () {},
-                            onViewAlbum: () {},
-                            onViewArtist: () {},
-                          ),
-                        );
-                      },
-                    ),
-            ),
             _NowPlayingSection(
               currentSong: currentSong,
               ref: ref,
@@ -114,6 +66,73 @@ class QueuePage extends ConsumerWidget {
                   onViewArtist: () {},
                 );
               },
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Up Next',
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: queue.isEmpty
+                  ? _EmptyQueue()
+                  : ReorderableListView.builder(
+                      itemCount: queue.length,
+                      onReorderItem: (oldIndex, newIndex) {
+                        ref
+                            .read(playbackProvider.notifier)
+                            .reorderQueue(oldIndex, newIndex);
+                      },
+                      itemBuilder: (_, index) {
+                        final song = queue[index];
+                        return Dismissible(
+                          key: ValueKey('dismiss_${song.id}_$index'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: AppColors.red,
+                            child: const Icon(Icons.remove_circle_outline, color: AppColors.white, size: AppIconSize.md),
+                          ),
+                          onDismissed: (_) => ref
+                              .read(playbackProvider.notifier)
+                              .removeFromQueue(song.id),
+                          child: QueueItemRow(
+                          key: ValueKey(song.id + index.toString()),
+                          song: song,
+                          position: index + 1,
+                          onRemoveTap: () => ref
+                              .read(playbackProvider.notifier)
+                              .removeFromQueue(song.id),
+                          onMoreTap: () => showQueueItemContextMenu(
+                            context,
+                            song,
+                            onAddToLibrary: () {},
+                            onAddToPlaylist: () {},
+                            onDownload: () {},
+                            onPlayNext: () {},
+                            onRemoveFromQueue: () {
+                              ref
+                                  .read(playbackProvider.notifier)
+                                  .removeFromQueue(song.id);
+                            },
+                            onShare: () {},
+                            onStartRadio: () {},
+                            onViewAlbum: () {},
+                            onViewArtist: () {},
+                          ),
+                        ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -162,6 +181,8 @@ class _NowPlayingSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.watch(playbackProvider);
+    final settingsAsync = ref.watch(settingsProvider);
+    final showVolumeSlider = settingsAsync.valueOrNull?.showQueueVolumeSlider ?? true;
 
     if (currentSong == null) {
       return const Padding(
@@ -191,7 +212,7 @@ class _NowPlayingSection extends ConsumerWidget {
 
     return Container(
       color: AppColors.bg1,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -208,7 +229,7 @@ class _NowPlayingSection extends ConsumerWidget {
                       song.title,
                       style: const TextStyle(
                         color: AppColors.white,
-                        fontSize: 14,
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
@@ -216,13 +237,13 @@ class _NowPlayingSection extends ConsumerWidget {
                     ),
                     Text(
                       song.artist,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       song.album,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -250,27 +271,50 @@ class _NowPlayingSection extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Progress bar
-          LinearProgressIndicator(value: progress.clamp(0.0, 1.0)),
-          const SizedBox(height: 4),
+          // Seek slider
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 3,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+            ),
+            child: Slider(
+              value: progress.clamp(0.0, 1.0),
+              onChanged: (v) {
+                final seek = Duration(seconds: (v * duration.inSeconds).round());
+                ref.read(playbackProvider.notifier).setPosition(seek);
+              },
+            ),
+          ),
           // Time row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                fmt(position),
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-              ),
-              Text(
-                '-${fmt(remaining)}',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-              ),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  fmt(position),
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+                Text(
+                  '-${fmt(remaining)}',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
-          // Controls row
+          // Controls row — shuffle left, repeat right, equal widths keep < play > centered
           Row(
             children: [
+              SizedBox(
+                width: 48,
+                child: IconButton(
+                  icon: Icon(Icons.shuffle, color: AppColors.textMuted),
+                  onPressed: () => ref.read(playbackProvider.notifier).shuffleQueue(),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: () => ref.read(playbackProvider.notifier).skipPrevious(),
@@ -303,28 +347,62 @@ class _NowPlayingSection extends ConsumerWidget {
                 ),
               ),
               const Spacer(),
-              _RepeatButton(
-                mode: playback.repeatMode,
-                onTap: () => ref.read(playbackProvider.notifier).cycleRepeat(),
+              SizedBox(
+                width: 48,
+                child: _RepeatButton(
+                  mode: playback.repeatMode,
+                  onTap: () => ref.read(playbackProvider.notifier).cycleRepeat(),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Ghost buttons row
+          // Volume slider (gated by setting) — sits in instrument panel zone with controls
+          if (showVolumeSlider) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.volume_down, color: AppColors.textMuted, size: 20),
+                Expanded(
+                  child: Slider(
+                    value: playback.volume.clamp(0.0, 1.0),
+                    min: 0,
+                    max: 1,
+                    onChanged: (v) =>
+                        ref.read(playbackProvider.notifier).setVolume(v),
+                  ),
+                ),
+                const Icon(Icons.volume_up, color: AppColors.textMuted, size: 20),
+              ],
+            ),
+          ],
+          const SizedBox(height: 4),
+          // Action buttons row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              TextButton.icon(
-                icon: const Icon(Icons.playlist_add),
-                label: const Text('Add to Playlist'),
-                onPressed: () {},
-                style: TextButton.styleFrom(foregroundColor: AppColors.white),
+              AppGhostButton(
+                icon: Icons.playlist_add,
+                label: 'Playlist',
+                active: true,
+                onTap: () {},
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.more_vert),
-                label: const Text('More'),
-                onPressed: onMoreTap,
-                style: TextButton.styleFrom(foregroundColor: AppColors.white),
+              AppGhostButton(
+                icon: Icons.album,
+                label: 'Album',
+                active: true,
+                onTap: () => context.go('/music/album/${song.albumId}'),
+              ),
+              AppGhostButton(
+                icon: Icons.person,
+                label: 'Artist',
+                active: true,
+                onTap: () => context.go('/music/artist/${song.artistId}'),
+              ),
+              AppGhostButton(
+                icon: Icons.more_horiz,
+                label: 'More',
+                active: true,
+                onTap: onMoreTap,
               ),
             ],
           ),

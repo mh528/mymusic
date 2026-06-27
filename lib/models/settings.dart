@@ -21,6 +21,7 @@ class AppSettings {
   final Set<LibraryTab> visibleTabs;
   final String? localMusicFolder;
   final MusicSource musicSource;
+  final bool showQueueVolumeSlider;
 
   const AppSettings({
     this.audioQuality = AudioQuality.auto,
@@ -38,6 +39,7 @@ class AppSettings {
     },
     this.localMusicFolder,
     this.musicSource = MusicSource.mock,
+    this.showQueueVolumeSlider = true,
   });
 
   AppSettings copyWith({
@@ -52,6 +54,7 @@ class AppSettings {
     String? localMusicFolder,
     bool clearLocalMusicFolder = false,
     MusicSource? musicSource,
+    bool? showQueueVolumeSlider,
   }) {
     return AppSettings(
       audioQuality: audioQuality ?? this.audioQuality,
@@ -64,6 +67,7 @@ class AppSettings {
       visibleTabs: visibleTabs ?? this.visibleTabs,
       localMusicFolder: clearLocalMusicFolder ? null : (localMusicFolder ?? this.localMusicFolder),
       musicSource: musicSource ?? this.musicSource,
+      showQueueVolumeSlider: showQueueVolumeSlider ?? this.showQueueVolumeSlider,
     );
   }
 

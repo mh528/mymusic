@@ -7,6 +7,7 @@ import 'pages/settings_page.dart';
 import 'pages/album_page.dart';
 import 'pages/artist_page.dart';
 import 'pages/playlist_page.dart';
+import 'providers/local_library_provider.dart';
 import 'providers/settings_provider.dart';
 import 'theme.dart';
 
@@ -74,8 +75,11 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch settings — available for future use (e.g. visible tabs)
     ref.watch(settingsProvider);
+    // On cold launch, restore local library cache once settings are available
+    ref.listen(settingsProvider, (_, next) {
+      next.whenData((s) => ref.read(localLibraryProvider.notifier).initFromSettings(s));
+    });
 
     return Scaffold(
       body: shell,

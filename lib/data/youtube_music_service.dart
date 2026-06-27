@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' hide Playlist;
 import '../models/song.dart';
+import '../models/album.dart';
+import '../models/artist.dart';
+import '../models/playlist.dart';
+import 'music_repository.dart';
 
 const _ytMusicBase = 'https://music.youtube.com/youtubei/v1/';
 const _ytMusicKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
@@ -16,7 +20,7 @@ const _ytMusicContext = {
 class YouTubeMusicService {
   final _yt = YoutubeExplode();
 
-  Future<List<Song>> search(String query) async {
+  Future<SearchResults> search(String query) async {
     try {
       final uri = Uri.parse(
           '${_ytMusicBase}search?prettyPrint=false&alt=json&key=$_ytMusicKey');
@@ -32,21 +36,28 @@ class YouTubeMusicService {
           ..set('cookie', 'CONSENT=YES+1');
         req.write(jsonEncode({'context': _ytMusicContext, 'query': query}));
         final res = await req.close();
+        print('[YT] HTTP ${res.statusCode} for query: $query');
         final body = await res.transform(utf8.decoder).join();
+        print('[YT] body length: ${body.length}');
+        if (body.length < 500) print('[YT] body: $body');
         final data = jsonDecode(body) as Map<String, dynamic>;
-        return _parseSongs(data);
+        return _parseResults(data);
       } finally {
         client.close(force: true);
       }
-    } catch (_) {
-      return [];
+    } catch (e, st) {
+      print('[YT] search error: $e\n$st');
+      return const SearchResults();
     }
   }
 
-  List<Song> _parseSongs(Map<String, dynamic> data) {
+  SearchResults _parseResults(Map<String, dynamic> data) {
     final songs = <Song>[];
+    final albums = <Album>[];
+    final artists = <Artist>[];
+    final playlists = <Playlist>[];
     try {
-      final tabs = _nav(data, [
+      final sections = _nav(data, [
         'contents',
         'tabbedSearchResultsRenderer',
         'tabs',
@@ -56,26 +67,54 @@ class YouTubeMusicService {
         'sectionListRenderer',
         'contents',
       ]) as List?;
-      if (tabs == null) return songs;
-      for (final section in tabs) {
-        final shelf = section['musicShelfRenderer'];
-        if (shelf == null) continue;
-        final contents = shelf['contents'] as List?;
-        if (contents == null) continue;
-        for (final item in contents) {
-          final renderer = item['musicResponsiveListItemRenderer'];
-          if (renderer == null) continue;
-          final song = _parseListItem(renderer);
-          if (song != null) songs.add(song);
+      if (sections == null) return const SearchResults();
+      for (final section in sections) {
+        // YouTube returns musicCardShelfRenderer (top result) and
+        // itemSectionRenderer (remaining rows) — never musicShelfRenderer.
+        List? items;
+        if (section['musicCardShelfRenderer'] != null) {
+          items = section['musicCardShelfRenderer']['contents'] as List?;
+        } else if (section['itemSectionRenderer'] != null) {
+          items = section['itemSectionRenderer']['contents'] as List?;
+        }
+        if (items == null) continue;
+        for (final item in items) {
+          final r = item['musicResponsiveListItemRenderer'];
+          if (r == null) continue;
+          final typeLabel = _col1FirstRun(r);
+          if (typeLabel == 'Album' || typeLabel == 'Single' || typeLabel == 'EP') {
+            final album = _parseAlbum(r);
+            if (album != null) albums.add(album);
+          } else if (typeLabel == 'Artist') {
+            final artist = _parseArtist(r);
+            if (artist != null) artists.add(artist);
+          } else if (typeLabel == 'Playlist') {
+            final playlist = _parsePlaylist(r);
+            if (playlist != null) playlists.add(playlist);
+          } else {
+            // Song, Video, Episode, or card shelf items with direct videoId
+            final song = _parseSong(r);
+            if (song != null) songs.add(song);
+          }
         }
       }
-    } catch (_) {}
-    return songs;
+    } catch (e) {
+      print('[YT] parse error: $e');
+    }
+    print('[YT] parsed songs=${songs.length} albums=${albums.length} artists=${artists.length} playlists=${playlists.length}');
+    return SearchResults(songs: songs, albums: albums, artists: artists, playlists: playlists);
   }
 
-  Song? _parseListItem(Map<String, dynamic> r) {
+  String _col1FirstRun(Map<String, dynamic> r) {
     try {
-      // videoId
+      return r['flexColumns'][1]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'][0]['text'] as String? ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Song? _parseSong(Map<String, dynamic> r) {
+    try {
       final videoId = _nav(r, [
         'overlay',
         'musicItemThumbnailOverlayRenderer',
@@ -87,50 +126,41 @@ class YouTubeMusicService {
       ]) as String?;
       if (videoId == null) return null;
 
-      // title
       final title = _nav(r, [
-        'flexColumns',
-        0,
+        'flexColumns', 0,
         'musicResponsiveListItemFlexColumnRenderer',
-        'text',
-        'runs',
-        0,
-        'text',
+        'text', 'runs', 0, 'text',
       ]) as String? ?? '';
 
-      // artist — second flex column, first run
-      final artist = _nav(r, [
-        'flexColumns',
-        1,
+      // col1 format: [Artist, •, Duration] or [Song/Video/Episode, •, Artist, ...]
+      final col1Runs = _nav(r, [
+        'flexColumns', 1,
         'musicResponsiveListItemFlexColumnRenderer',
-        'text',
-        'runs',
-        0,
-        'text',
-      ]) as String? ?? '';
+        'text', 'runs',
+      ]) as List?;
+      final typeLabels = {'Song', 'Video', 'Album', 'Single', 'EP', 'Playlist', 'Episode'};
+      String artist = '';
+      if (col1Runs != null && col1Runs.isNotEmpty) {
+        final first = col1Runs[0]['text'] as String? ?? '';
+        if (typeLabels.contains(first) && col1Runs.length >= 3) {
+          artist = col1Runs[2]['text'] as String? ?? '';
+        } else {
+          artist = first;
+        }
+      }
 
-      // thumbnail
       final thumbs = _nav(r, [
-        'thumbnail',
-        'musicThumbnailRenderer',
-        'thumbnail',
-        'thumbnails',
+        'thumbnail', 'musicThumbnailRenderer', 'thumbnail', 'thumbnails',
       ]) as List?;
       final thumbnailUrl = thumbs != null && thumbs.isNotEmpty
           ? (thumbs.last['url'] as String?)
           : null;
 
-      // duration from fixedColumns
       final durationText = _nav(r, [
-        'fixedColumns',
-        0,
+        'fixedColumns', 0,
         'musicResponsiveListItemFixedColumnRenderer',
-        'text',
-        'runs',
-        0,
-        'text',
+        'text', 'runs', 0, 'text',
       ]) as String?;
-      final duration = _parseDuration(durationText);
 
       return Song(
         id: 'yt_$videoId',
@@ -139,11 +169,70 @@ class YouTubeMusicService {
         artistId: '',
         album: '',
         albumId: '',
-        duration: duration,
+        duration: _parseDuration(durationText),
         videoId: videoId,
         thumbnailUrl: thumbnailUrl,
         inLibrary: false,
       );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Album? _parseAlbum(Map<String, dynamic> r) {
+    try {
+      final browseId = _nav(r, ['navigationEndpoint', 'browseEndpoint', 'browseId']) as String?;
+      if (browseId == null) return null;
+      final title = _nav(r, [
+        'flexColumns', 0,
+        'musicResponsiveListItemFlexColumnRenderer',
+        'text', 'runs', 0, 'text',
+      ]) as String? ?? '';
+      final col1Runs = _nav(r, [
+        'flexColumns', 1,
+        'musicResponsiveListItemFlexColumnRenderer',
+        'text', 'runs',
+      ]) as List? ?? [];
+      // format: [Album/Single/EP, •, Artist, •, Year]
+      final artist = col1Runs.length >= 3 ? (col1Runs[2]['text'] as String? ?? '') : '';
+      final yearStr = col1Runs.length >= 5 ? (col1Runs[4]['text'] as String? ?? '0') : '0';
+      return Album(
+        id: browseId,
+        title: title,
+        artist: artist,
+        artistId: '',
+        year: int.tryParse(yearStr) ?? 0,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Artist? _parseArtist(Map<String, dynamic> r) {
+    try {
+      final browseId = _nav(r, ['navigationEndpoint', 'browseEndpoint', 'browseId']) as String?;
+      if (browseId == null) return null;
+      final name = _nav(r, [
+        'flexColumns', 0,
+        'musicResponsiveListItemFlexColumnRenderer',
+        'text', 'runs', 0, 'text',
+      ]) as String? ?? '';
+      return Artist(id: browseId, name: name);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Playlist? _parsePlaylist(Map<String, dynamic> r) {
+    try {
+      final browseId = _nav(r, ['navigationEndpoint', 'browseEndpoint', 'browseId']) as String?;
+      if (browseId == null) return null;
+      final name = _nav(r, [
+        'flexColumns', 0,
+        'musicResponsiveListItemFlexColumnRenderer',
+        'text', 'runs', 0, 'text',
+      ]) as String? ?? '';
+      return Playlist(id: browseId, name: name);
     } catch (_) {
       return null;
     }
@@ -180,10 +269,17 @@ class YouTubeMusicService {
   /// Fetches a live CDN stream URL. Never cache — expires in ~6 hours.
   Future<String?> getStreamUrl(String videoId) async {
     try {
-      final manifest = await _yt.videos.streams.getManifest(videoId);
+      print('[YT] getStreamUrl: $videoId');
+      final manifest = await _yt.videos.streams.getManifest(
+        videoId,
+        ytClients: [YoutubeApiClient.androidSdkless],
+      );
       final audio = manifest.audioOnly.withHighestBitrate();
-      return audio.url.toString();
-    } catch (_) {
+      final url = audio.url.toString();
+      print('[YT] stream url ok, length=${url.length}');
+      return url;
+    } catch (e, st) {
+      print('[YT] getStreamUrl error: $e\n$st');
       return null;
     }
   }

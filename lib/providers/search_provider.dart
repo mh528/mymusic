@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/music_repository.dart';
-import '../models/song.dart';
 import 'yt_library_provider.dart';
 
 class SearchState {
@@ -63,9 +62,9 @@ class SearchNotifier extends Notifier<SearchState> {
     // Search YouTube Music anonymously
     try {
       final ytSvc = ref.read(youtubeMusicServiceProvider);
-      final List<Song> songs = await ytSvc.search(query);
+      final results = await ytSvc.search(query);
       state = state.copyWith(
-        results: SearchResults(songs: songs),
+        results: results,
         isLoading: false,
       );
     } catch (_) {

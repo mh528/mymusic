@@ -8,6 +8,8 @@ enum LibraryTab { songs, albums, artists, playlists }
 
 enum RepeatMode { off, all, one }
 
+enum MusicSource { mock, local }
+
 class AppSettings {
   final AudioQuality audioQuality;
   final bool persistentQueue;
@@ -17,6 +19,8 @@ class AppSettings {
   final LibrarySource defaultLibrarySource;
   final SearchSource defaultSearchSource;
   final Set<LibraryTab> visibleTabs;
+  final String? localMusicFolder;
+  final MusicSource musicSource;
 
   const AppSettings({
     this.audioQuality = AudioQuality.auto,
@@ -32,6 +36,8 @@ class AppSettings {
       LibraryTab.artists,
       LibraryTab.playlists,
     },
+    this.localMusicFolder,
+    this.musicSource = MusicSource.mock,
   });
 
   AppSettings copyWith({
@@ -43,6 +49,9 @@ class AppSettings {
     LibrarySource? defaultLibrarySource,
     SearchSource? defaultSearchSource,
     Set<LibraryTab>? visibleTabs,
+    String? localMusicFolder,
+    bool clearLocalMusicFolder = false,
+    MusicSource? musicSource,
   }) {
     return AppSettings(
       audioQuality: audioQuality ?? this.audioQuality,
@@ -53,6 +62,8 @@ class AppSettings {
       defaultLibrarySource: defaultLibrarySource ?? this.defaultLibrarySource,
       defaultSearchSource: defaultSearchSource ?? this.defaultSearchSource,
       visibleTabs: visibleTabs ?? this.visibleTabs,
+      localMusicFolder: clearLocalMusicFolder ? null : (localMusicFolder ?? this.localMusicFolder),
+      musicSource: musicSource ?? this.musicSource,
     );
   }
 

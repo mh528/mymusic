@@ -1,6 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/settings.dart';
+import '../providers/local_library_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme.dart';
 
@@ -108,6 +111,10 @@ class _SettingsBody extends ConsumerWidget {
           value: settings.visibleTabs.contains(tab),
           onChanged: (v) => notifier.setTabVisible(tab, v),
         )),
+
+        // ── Local Library ─────────────────────────────────
+        _SectionHeader('Local Library'),
+        _LocalLibrarySection(settings: settings),
 
         // ── Data ──────────────────────────────────────────
         _SectionHeader('Data'),
@@ -267,6 +274,139 @@ class _InfoSetting extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _LocalLibrarySection extends ConsumerWidget {
+  final AppSettings settings;
+  const _LocalLibrarySection({required this.settings});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final localLibrary = ref.watch(localLibraryProvider);
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final localLibraryNotifier = ref.read(localLibraryProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _DropdownSetting<MusicSource>(
+          title: 'Music Source',
+          description: 'Use local files or mock data',
+          value: settings.musicSource,
+          items: MusicSource.values,
+          label: (s) => s == MusicSource.local ? 'Local Files' : 'Mock Data',
+          onChanged: (v) => settingsNotifier.setMusicSource(v),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Music Folder', style: TextStyle(color: AppColors.white, fontSize: 15, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(
+                      settings.localMusicFolder ?? 'Not configured',
+                      style: TextStyle(
+                        color: settings.localMusicFolder != null ? AppColors.textMuted : AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => _pickFolder(context, ref, settingsNotifier, localLibraryNotifier),
+                child: Text(
+                  settings.localMusicFolder != null ? 'Change' : 'Choose',
+                  style: const TextStyle(color: AppColors.white, fontSize: 14),
+                ),
+              ),
+              if (settings.localMusicFolder != null)
+                TextButton(
+                  onPressed: () => settingsNotifier.setLocalMusicFolder(null),
+                  child: const Text('Remove', style: TextStyle(color: AppColors.red, fontSize: 14)),
+                ),
+            ],
+          ),
+        ),
+        if (localLibrary.isScanning)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Scanning… ${localLibrary.scanProgress} songs found',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          )
+        else if (settings.localMusicFolder != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  '${localLibrary.songs.length} songs in library',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => localLibraryNotifier.scan(
+                    [settings.localMusicFolder!],
+                  ),
+                  child: const Text('Rescan', style: TextStyle(color: AppColors.white, fontSize: 14)),
+                ),
+              ],
+            ),
+          ),
+        if (localLibrary.error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              'Error: ${localLibrary.error}',
+              style: const TextStyle(color: AppColors.red, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickFolder(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsNotifier settingsNotifier,
+    LocalLibraryNotifier localLibraryNotifier,
+  ) async {
+    // Request Android storage permission
+    final status = await Permission.audio.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Storage permission required to access music files')),
+        );
+      }
+      return;
+    }
+
+    final path = await FilePicker.getDirectoryPath();
+    if (path == null) return;
+
+    settingsNotifier.setLocalMusicFolder(path);
+    settingsNotifier.setMusicSource(MusicSource.local);
+    await localLibraryNotifier.scan([path]);
   }
 }
 

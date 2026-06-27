@@ -45,6 +45,13 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
   void setDefaultSearchSource(SearchSource src) =>
       _update((s) => s.copyWith(defaultSearchSource: src));
 
+  void setMusicSource(MusicSource src) =>
+      _update((s) => s.copyWith(musicSource: src));
+
+  void setLocalMusicFolder(String? path) => _update((s) => path != null
+      ? s.copyWith(localMusicFolder: path)
+      : s.copyWith(clearLocalMusicFolder: true));
+
   void setTabVisible(LibraryTab tab, bool visible) {
     _update((s) {
       final tabs = Set<LibraryTab>.from(s.visibleTabs);

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class Song {
   final String id;
   final String title;
@@ -12,6 +14,8 @@ class Song {
   final bool inQueue;
   // asset:///, file://, or https:// URL; null = not playable yet
   final String? filePath;
+  // Embedded album art from ID3 tags; null = use grey placeholder
+  final Uint8List? albumArtBytes;
 
   const Song({
     required this.id,
@@ -26,6 +30,7 @@ class Song {
     this.inLibrary = false,
     this.inQueue = false,
     this.filePath,
+    this.albumArtBytes,
   });
 
   Song copyWith({
@@ -34,6 +39,7 @@ class Song {
     bool? inLibrary,
     bool? inQueue,
     String? filePath,
+    Uint8List? albumArtBytes,
   }) {
     return Song(
       id: id,
@@ -48,6 +54,7 @@ class Song {
       inLibrary: inLibrary ?? this.inLibrary,
       inQueue: inQueue ?? this.inQueue,
       filePath: filePath ?? this.filePath,
+      albumArtBytes: albumArtBytes ?? this.albumArtBytes,
     );
   }
 }

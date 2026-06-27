@@ -6,7 +6,7 @@ The app has a complete UI shell and Riverpod state layer but no actual audio pla
 
 **Order of implementation:**
 1. **Phase 1D** — Wire `just_audio` to asset MP3s, hear sound ✅ DONE
-2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates
+2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates ✅ DONE
 3. **Phase 2** — YouTube Music streaming via `youtube_explode_dart` (anonymous, no login)
 
 ---

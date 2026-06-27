@@ -1,14 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/local_music_repository.dart';
 import '../data/mock_music_repository.dart';
 import '../data/music_repository.dart';
+import '../models/settings.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../models/artist.dart';
 import '../models/playlist.dart';
+import 'local_library_provider.dart';
+import 'settings_provider.dart';
 
-final musicRepositoryProvider = Provider<MusicRepository>(
-  (ref) => MockMusicRepository(),
-);
+final musicRepositoryProvider = Provider<MusicRepository>((ref) {
+  final settings = ref.watch(settingsProvider).valueOrNull;
+  if (settings?.musicSource == MusicSource.local &&
+      settings?.localMusicFolder != null) {
+    final songs = ref.watch(localLibraryProvider).songs;
+    return LocalMusicRepository(songs);
+  }
+  return MockMusicRepository();
+});
 
 class LibraryState {
   final List<Song> songs;

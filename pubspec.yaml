@@ -26,13 +26,30 @@ dependencies:
   # HTTP for Phase 2 YouTube Music
   dio: ^5.4.3
 
+  # Phase 1E — Local folder library
+  metadata_god: ^1.1.0       # ID3v2.4 tag reading
+  file_picker: ^11.0.2       # Native folder picker dialog
+  permission_handler: ^11.0.0 # Android READ_MEDIA_AUDIO permission
+  path_provider: ^2.1.0      # getApplicationSupportDirectory() for JSON cache
+  crypto: ^3.0.3             # MD5 hash for stable song IDs
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/audio/
+    - assets/icon.png

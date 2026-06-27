@@ -10,6 +10,8 @@ class SettingsRepository {
   static const _defaultLibrarySource = 'defaultLibrarySource';
   static const _defaultSearchSource = 'defaultSearchSource';
   static const _visibleTabs = 'visibleTabs';
+  static const _localMusicFolder = 'localMusicFolder';
+  static const _musicSource = 'musicSource';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -47,6 +49,8 @@ class SettingsRepository {
       defaultLibrarySource: LibrarySource.values[libSourceIndex.clamp(0, LibrarySource.values.length - 1)],
       defaultSearchSource: SearchSource.values[searchSourceIndex.clamp(0, SearchSource.values.length - 1)],
       visibleTabs: visibleTabs,
+      localMusicFolder: prefs.getString(_localMusicFolder),
+      musicSource: MusicSource.values[(prefs.getInt(_musicSource) ?? 0).clamp(0, MusicSource.values.length - 1)],
     );
   }
 
@@ -63,5 +67,11 @@ class SettingsRepository {
       _visibleTabs,
       s.visibleTabs.map((t) => t.index.toString()).toList(),
     );
+    if (s.localMusicFolder != null) {
+      await prefs.setString(_localMusicFolder, s.localMusicFolder!);
+    } else {
+      await prefs.remove(_localMusicFolder);
+    }
+    await prefs.setInt(_musicSource, s.musicSource.index);
   }
 }

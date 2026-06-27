@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:metadata_god/metadata_god.dart';
 import 'app.dart';
-import 'data/mock_music_repository.dart';
-import 'providers/library_provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MetadataGod.initialize();
   runApp(
-    ProviderScope(
-      overrides: [
-        musicRepositoryProvider.overrideWithValue(MockMusicRepository()),
-      ],
-      child: const MyMusicApp(),
+    const ProviderScope(
+      child: MyMusicApp(),
     ),
   );
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +9,9 @@ import '../models/artist.dart';
 import '../models/playlist.dart';
 import '../providers/library_provider.dart';
 import '../providers/playback_provider.dart';
+import '../providers/search_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/yt_library_provider.dart';
 import '../components/tabs/filter_chips_row.dart';
 import '../components/tabs/content_tab_bar.dart';
 import '../components/list_rows/song_row.dart';
@@ -32,13 +35,26 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   String _searchQuery = '';
   String _activeSource = 'Library';
   LibraryTab _activeTab = LibraryTab.songs;
+  Timer? _searchDebounce;
 
   final TextEditingController _searchController = TextEditingController();
 
   static const List<String> _sources = ['Library', 'Downloads', 'All Music'];
 
+  void _triggerYtSearch(String query) {
+    _searchDebounce?.cancel();
+    if (query.trim().isEmpty) {
+      ref.read(searchProvider.notifier).clearQuery();
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      ref.read(searchProvider.notifier).search(query);
+    });
+  }
+
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -79,6 +95,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final settings = settingsAsync.valueOrNull;
     final visibleTabs =
         settings?.orderedVisibleTabs ?? LibraryTab.values.toList();
+    final searchState = ref.watch(searchProvider);
 
     return SafeArea(
       child: Column(
@@ -102,11 +119,18 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                             _searchQuery = '';
                             _searchController.clear();
                           });
+                          if (_activeSource == 'All Music') {
+                            _searchDebounce?.cancel();
+                            ref.read(searchProvider.notifier).clearQuery();
+                          }
                         },
                       )
                     : null,
               ),
-              onChanged: (v) => setState(() => _searchQuery = v),
+              onChanged: (v) {
+                setState(() => _searchQuery = v);
+                if (_activeSource == 'All Music') _triggerYtSearch(v);
+              },
             ),
           ),
 
@@ -115,7 +139,15 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
             options: _sources,
             selected: _activeSource,
             label: (s) => s,
-            onSelected: (src) => setState(() => _activeSource = src),
+            onSelected: (src) {
+              setState(() => _activeSource = src);
+              if (src == 'All Music') {
+                _triggerYtSearch(_searchQuery);
+              } else {
+                _searchDebounce?.cancel();
+                ref.read(searchProvider.notifier).clearQuery();
+              }
+            },
           ),
 
           // Main content
@@ -130,6 +162,45 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                 ),
               ),
               data: (library) {
+                // All Music + query → show live YT results
+                if (_activeSource == 'All Music' && _searchQuery.trim().isNotEmpty) {
+                  if (searchState.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final ytSongs = searchState.results.songs;
+                  if (ytSongs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "No results for '$_searchQuery'",
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 16),
+                      ),
+                    );
+                  }
+                  return _buildSongsList(
+                    context,
+                    songs: ytSongs,
+                    libraryNotifier: libraryNotifier,
+                    playbackNotifier: playbackNotifier,
+                    settings: settings,
+                    isYtResult: true,
+                  );
+                }
+                // All Music + no query → prompt to search
+                if (_activeSource == 'All Music' && _searchQuery.trim().isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search, size: 56, color: AppColors.textMuted),
+                        SizedBox(height: 16),
+                        Text(
+                          'Search to discover music',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 return _buildContent(
                   context,
                   library: library,
@@ -258,6 +329,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     required LibraryNotifier libraryNotifier,
     required PlaybackNotifier playbackNotifier,
     AppSettings? settings,
+    bool isYtResult = false,
   }) {
     if (_activeSource == 'Downloads' && songs.isEmpty) {
       return _buildEmptyDownloads();
@@ -265,31 +337,38 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     if (songs.isEmpty && _searchQuery.isNotEmpty) {
       return _buildEmptySearch();
     }
+    final ytNotifier = ref.read(ytLibraryProvider.notifier);
     return ListView.builder(
       itemCount: songs.length,
       itemBuilder: (context, i) {
-        final song = songs[i];
+        // For YT results, reflect actual library membership so the context menu
+        // shows the correct Add/Remove label and icon state.
+        final rawSong = songs[i];
+        final song = isYtResult
+            ? rawSong.copyWith(inLibrary: ytNotifier.isInLibrary(rawSong.id))
+            : rawSong;
         return SongRow(
           song: song,
           onTap: () {
             playbackNotifier.playSong(song, queue: songs);
             if (settings?.autoOpenQueue == true) context.go('/queue');
           },
-          onDownloadTap: () => libraryNotifier.toggleSongDownload(song.id),
+          onDownloadTap: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
           onMoreTap: () => showSongContextMenu(
             context,
             song,
-            onAddToLibrary: () => libraryNotifier.toggleLibrary(song.id),
-            onRemoveFromLibrary: () => libraryNotifier.toggleLibrary(song.id),
+            onAddToLibrary: isYtResult
+                ? () => ytNotifier.addToLibrary(song)
+                : () => libraryNotifier.toggleLibrary(song.id),
+            onRemoveFromLibrary: isYtResult
+                ? () => ytNotifier.removeFromLibrary(song.id)
+                : () => libraryNotifier.toggleLibrary(song.id),
             onAddToQueue: () => playbackNotifier.addToQueue(song),
-            onDownload: () => libraryNotifier.toggleSongDownload(song.id),
-            onRemoveDownload: () =>
-                libraryNotifier.toggleSongDownload(song.id),
+            onDownload: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
+            onRemoveDownload: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
             onPlayNext: () => playbackNotifier.addToQueue(song),
-            onViewAlbum: () =>
-                context.push('/library/album/${song.albumId}'),
-            onViewArtist: () =>
-                context.push('/library/artist/${song.artistId}'),
+            onViewAlbum: () => context.push('/library/album/${song.albumId}'),
+            onViewArtist: () => context.push('/library/artist/${song.artistId}'),
           ),
         );
       },

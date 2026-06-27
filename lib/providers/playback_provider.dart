@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/song.dart';
 import '../models/settings.dart';
 import '../data/audio_service.dart';
+import 'library_provider.dart';
 
 class PlaybackState {
   final Song? currentSong;
@@ -77,7 +78,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     return const PlaybackState();
   }
 
-  void playSong(Song song, {List<Song> queue = const []}) {
+  Future<void> playSong(Song song, {List<Song> queue = const []}) async {
     state = state.copyWith(
       currentSong: song,
       queue: queue.isNotEmpty ? queue : state.queue,
@@ -85,9 +86,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
       position: Duration.zero,
       duration: song.duration,
     );
-    if (song.filePath != null) {
-      _audio.play(song.filePath!);
-    }
+    final url = await ref.read(musicRepositoryProvider).getStreamUrl(song.id);
+    if (url == null) return;
+    await _audio.play(url);
   }
 
   void playPause() {
@@ -99,7 +100,7 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
     state = state.copyWith(isPlaying: !state.isPlaying);
   }
 
-  void skipNext() {
+  Future<void> skipNext() async {
     final queue = state.queue;
     if (queue.isEmpty) {
       if (state.repeatMode == RepeatMode.one && state.currentSong != null) {
@@ -130,7 +131,8 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           duration: next.duration,
           isPlaying: true,
         );
-        if (next.filePath != null) _audio.play(next.filePath!);
+        final url = await ref.read(musicRepositoryProvider).getStreamUrl(next.id);
+        if (url != null) await _audio.play(url);
       } else {
         _audio.pause();
         state = state.copyWith(isPlaying: false, position: Duration.zero);
@@ -143,11 +145,12 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: next.duration,
         isPlaying: true,
       );
-      if (next.filePath != null) _audio.play(next.filePath!);
+      final url = await ref.read(musicRepositoryProvider).getStreamUrl(next.id);
+      if (url != null) await _audio.play(url);
     }
   }
 
-  void skipPrevious() {
+  Future<void> skipPrevious() async {
     if (state.position > const Duration(seconds: 3)) {
       _audio.seek(Duration.zero);
       state = state.copyWith(position: Duration.zero);
@@ -169,7 +172,8 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
         duration: prev.duration,
         isPlaying: true,
       );
-      if (prev.filePath != null) _audio.play(prev.filePath!);
+      final url = await ref.read(musicRepositoryProvider).getStreamUrl(prev.id);
+      if (url != null) await _audio.play(url);
     }
   }
 

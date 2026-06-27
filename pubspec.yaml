@@ -27,11 +27,11 @@ dependencies:
   dio: ^5.4.3
 
   # Phase 1E — Local folder library
-  metadata_god: ^1.1.0       # ID3v2.4 tag reading
   file_picker: ^11.0.2       # Native folder picker dialog
   permission_handler: ^11.0.0 # Android READ_MEDIA_AUDIO permission
   path_provider: ^2.1.0      # getApplicationSupportDirectory() for JSON cache
   crypto: ^3.0.3             # MD5 hash for stable song IDs
+  mp3_info: ^0.2.3
 
 dev_dependencies:
   flutter_test:

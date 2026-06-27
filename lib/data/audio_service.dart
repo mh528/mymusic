@@ -12,7 +12,10 @@ class AudioService {
       final path = url.startsWith('file://') ? url.substring(7) : url;
       await _player.setFilePath(path);
     } else {
-      await _player.setUrl(url);
+      // YouTube CDN requires a matching user-agent or returns 403
+      await _player.setUrl(url, headers: {
+        'user-agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+      });
     }
     await _player.play();
   }

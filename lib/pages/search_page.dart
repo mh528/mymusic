@@ -183,6 +183,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       );
     }
 
+    if (searchState.isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.white));
+    }
+
     final results = searchState.results;
     if (results.isEmpty) {
       return Center(

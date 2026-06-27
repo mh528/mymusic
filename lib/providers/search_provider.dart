@@ -61,13 +61,19 @@ class SearchNotifier extends Notifier<SearchState> {
     );
 
     // Search YouTube Music anonymously
-    final ytSvc = ref.read(youtubeMusicServiceProvider);
-    final List<Song> songs = await ytSvc.search(query);
-
-    state = state.copyWith(
-      results: SearchResults(songs: songs),
-      isLoading: false,
-    );
+    try {
+      final ytSvc = ref.read(youtubeMusicServiceProvider);
+      final List<Song> songs = await ytSvc.search(query);
+      state = state.copyWith(
+        results: SearchResults(songs: songs),
+        isLoading: false,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        results: const SearchResults(),
+        isLoading: false,
+      );
+    }
   }
 
   void clearHistory() {

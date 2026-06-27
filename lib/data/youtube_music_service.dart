@@ -6,8 +6,12 @@ class YouTubeMusicService {
   final _yt = YoutubeExplode();
 
   Future<List<Song>> search(String query) async {
-    final results = await _yt.search.search(query);
-    return results.map(_videoToSong).toList();
+    try {
+      final results = await _yt.search.search(query);
+      return results.map(_videoToSong).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Fetches a live CDN stream URL. Never cache — expires in ~6 hours.

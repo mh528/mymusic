@@ -124,7 +124,7 @@ class _SettingsBody extends ConsumerWidget {
 
         // ── YouTube Music ─────────────────────────────────
         _SectionHeader('YouTube Music'),
-        _InfoSetting(title: 'Mode', value: 'Anonymous streaming'),
+        _InfoSetting(title: 'Search', value: 'Always active — search any song anonymously'),
         _InfoSetting(title: 'Login', value: 'Not required'),
 
         // ── Data ──────────────────────────────────────────

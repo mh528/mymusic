@@ -6,6 +6,8 @@
         android:maxSdkVersion="32"/>
     <!-- Broad filesystem access so dart:io can read arbitrary folder paths from the directory picker -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <!-- Required for YouTube Music streaming -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="My Music"
         android:name="${applicationName}"

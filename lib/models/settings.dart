@@ -8,7 +8,7 @@ enum LibraryTab { songs, albums, artists, playlists }
 
 enum RepeatMode { off, all, one }
 
-enum MusicSource { mock, local }
+enum MusicSource { mock, local, youtube }
 
 class AppSettings {
   final AudioQuality audioQuality;

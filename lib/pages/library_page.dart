@@ -139,6 +139,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   visibleTabs: visibleTabs,
                   libraryNotifier: libraryNotifier,
                   playbackNotifier: playbackNotifier,
+                  settings: settings,
                 );
               },
             ),
@@ -165,6 +166,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     required List<LibraryTab> visibleTabs,
     required LibraryNotifier libraryNotifier,
     required PlaybackNotifier playbackNotifier,
+    AppSettings? settings,
   }) {
     final effectiveTab =
         visibleTabs.contains(_activeTab) ? _activeTab : visibleTabs.first;
@@ -175,6 +177,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           songs: _filterSongs(library.songs),
           libraryNotifier: libraryNotifier,
           playbackNotifier: playbackNotifier,
+          settings: settings,
         ),
       LibraryTab.albums => _buildAlbumsList(
           context,
@@ -255,6 +258,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     required List<Song> songs,
     required LibraryNotifier libraryNotifier,
     required PlaybackNotifier playbackNotifier,
+    AppSettings? settings,
   }) {
     if (_activeSource == 'Downloads' && songs.isEmpty) {
       return _buildEmptyDownloads();
@@ -270,7 +274,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
           song: song,
           onTap: () {
             playbackNotifier.playSong(song, queue: songs);
-            context.go('/queue');
+            if (settings?.autoOpenQueue == true) context.go('/queue');
           },
           onDownloadTap: () => libraryNotifier.toggleSongDownload(song.id),
           onMoreTap: () => showSongContextMenu(

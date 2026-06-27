@@ -5,7 +5,7 @@
 The app has a complete UI shell and Riverpod state layer but no actual audio playback. This document covers the full plan for wiring real audio: first local files, then local folder library, then YouTube Music streaming.
 
 **Order of implementation:**
-1. **Phase 1D** — Wire `just_audio` to asset MP3s, hear sound
+1. **Phase 1D** — Wire `just_audio` to asset MP3s, hear sound ✅ DONE
 2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates
 3. **Phase 2** — YouTube Music streaming via `youtube_explode_dart` (anonymous, no login)
 
@@ -38,7 +38,7 @@ The app has a complete UI shell and Riverpod state layer but no actual audio pla
 
 ---
 
-## Phase 1D — Wire just_audio to Asset MP3s
+## Phase 1D — Wire just_audio to Asset MP3s ✅ DONE
 
 **Goal:** Drop a few MP3s into `assets/audio/`, wire `just_audio`, hear sound.
 
@@ -84,6 +84,10 @@ final String? filePath;  // null = no local file; asset:// or file:// path when 
 ### `MockMusicRepository.getStreamUrl()`
 
 Return `'asset:///assets/audio/<filename>.mp3'` for songs with a matching asset file. Return null for others — UI should grey out the play button when filePath is null.
+
+### Auto-navigate to Queue on song tap
+
+Controlled by the existing `AppSettings.autoOpenQueue` setting (already in the model and Settings UI). When true, tapping a song in the library calls `context.go('/queue')` after `playSong()`. Default is off so users keep their place. Setting label: "Auto Open Queue — Switch to Queue tab when a song starts".
 
 ---
 

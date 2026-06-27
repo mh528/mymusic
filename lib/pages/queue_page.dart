@@ -21,12 +21,20 @@ class QueuePage extends ConsumerWidget {
     final playback = ref.watch(playbackProvider);
     final queue = playback.queue;
     final currentSong = playback.currentSong;
+    final error = playback.lastError;
 
     return Scaffold(
       backgroundColor: AppColors.black,
       body: SafeArea(
         child: Column(
           children: [
+            if (error != null)
+              Container(
+                width: double.infinity,
+                color: Colors.red.shade900,
+                padding: const EdgeInsets.all(12),
+                child: Text(error, style: const TextStyle(color: Colors.white, fontSize: 12)),
+              ),
             _NowPlayingSection(
               currentSong: currentSong,
               ref: ref,

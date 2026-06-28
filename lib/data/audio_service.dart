@@ -1,4 +1,5 @@
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 
 class AudioService {
   final AudioPlayer _player = AudioPlayer();
@@ -7,16 +8,33 @@ class AudioService {
   Stream<Duration?> get durationStream => _player.durationStream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
 
-  Future<void> play(String url) async {
+  Future<void> play(
+    String url, {
+    String id = '',
+    String title = '',
+    String artist = '',
+    String? artUri,
+  }) async {
+    final tag = MediaItem(
+      id: id.isEmpty ? url : id,
+      title: title.isEmpty ? 'Unknown' : title,
+      artist: artist.isEmpty ? 'Unknown' : artist,
+      artUri: artUri != null ? Uri.tryParse(artUri) : null,
+    );
+
+    final AudioSource source;
     if (url.startsWith('/') || url.startsWith('file://')) {
       final path = url.startsWith('file://') ? url.substring(7) : url;
-      await _player.setFilePath(path);
+      source = AudioSource.file(path, tag: tag);
     } else {
-      // YouTube CDN requires a matching user-agent or returns 403
-      await _player.setUrl(url, headers: {
-        'user-agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
-      });
+      // No custom headers: passing headers forces just_audio onto its localhost
+      // HTTP proxy on Android, which mishandles range requests on seek
+      // ("source error 0"). The CDN URL from youtube_explode_dart is already
+      // signed and needs no user-agent. Let ExoPlayer fetch it directly.
+      source = AudioSource.uri(Uri.parse(url), tag: tag);
     }
+
+    await _player.setAudioSource(source);
     await _player.play();
   }
 

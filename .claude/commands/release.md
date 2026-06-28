@@ -30,6 +30,10 @@ Example: `/release v1.1.0 Fixed ID3 fallback for FLAC files`
    ```
    cd /Users/michaelhayes/Documents/Code/mymusic/flutter && flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons
    ```
+   **After a nuclear clean (`flutter clean`)**, add `--no-shrink` to avoid shader compiler OOM-kill on 8GB RAM:
+   ```
+   cd /Users/michaelhayes/Documents/Code/mymusic/flutter && flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons --no-shrink
+   ```
 
 5. APK is written to: `build/app/outputs/flutter-apk/app-release.apk`
    (Flutter may print a false "couldn't find it" warning — ignore it, the file is there.)
@@ -66,6 +70,8 @@ Example: `/release v1.1.0 Fixed ID3 fallback for FLAC files`
 
 ## Terminal Command
 flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons 2>&1
+# After flutter clean, use:
+flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons --no-shrink 2>&1
 
 ## Known quirks
 
@@ -75,3 +81,4 @@ flutter build apk --release --target-platform android-arm64 --no-tree-shake-icon
 - **arm64 only** — `--target-platform android-arm64` avoids OOM on 8GB Mac during AOT compilation. The APK works on all modern Android phones.
 - **`--no-tree-shake-icons`** — suppresses a Cupertino font warning that can interfere with the shader compilation step.
 - **Two-tier clean** — Step 3 defaults to a light clean (delete `android/app/build/` only). This preserves the Gradle daemon cache and saves ~2-3 min on 8GB RAM. Only use the nuclear clean (`flutter clean` + `android/.gradle`) when the light clean doesn't fix the error.
+- **`--no-shrink` after nuclear clean** — after `flutter clean`, the shader compiler OOM-kills (exit code -9) without `--no-shrink`. The light clean does not need it. R8 ArrayIndexOutOfBoundsException is also fixed by adding `--no-shrink`.

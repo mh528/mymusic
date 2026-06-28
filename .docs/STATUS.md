@@ -1,15 +1,15 @@
 # My Music — Flutter App Status
 
-**Last Updated:** 2026-06-27  
-**Dev Server:** `flutter run -d web-server --web-port=9090` → http://localhost:9090  
-**Build APK:** `flutter build apk --release`  
-**Release APK:** `flutter build apk --release --target-platform android-arm64`
+**Last Updated:** 2026-06-28  
+**Current Release:** v1.2.7  
+**Build APK:** `flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons --no-shrink`  
+Note: after `flutter clean`, add `--no-shrink` to avoid shader compiler OOM on 8GB RAM.
 
 ---
 
-## Current State: Phase 1E Bug-Fixed — Ready for On-Device Test
+## Current State: YouTube search works, playback broken (source error 0)
 
-Phase 1D (asset playback) and Phase 1E (local folder library) are complete. A batch of bugs found during post-release audit have been fixed. The app should now correctly show scanned songs in the library and play them. APK rebuild + on-device test is the next step.
+Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search are all working on device. YouTube stream URL is successfully fetched but `just_audio` throws "source error 0" when trying to play it. Root cause not yet confirmed — see Playback Debugging section below.
 
 ---
 
@@ -19,77 +19,82 @@ Phase 1D (asset playback) and Phase 1E (local folder library) are complete. A ba
 - Flutter project scaffolded at `/Users/michaelhayes/Documents/Code/mymusic/flutter/`
 - Package: `com.mymusic.app` | App name: My Music
 - Theme: black/white/grey only, red for destructive — `lib/theme.dart`
-- Dependencies: go_router, flutter_riverpod, just_audio, shared_preferences, file_picker, permission_handler, path_provider, crypto
+- Dependencies: go_router, flutter_riverpod, just_audio, shared_preferences, file_picker, permission_handler, path_provider, crypto, youtube_explode_dart ^3.1.0
 
-### Data Layer
-- All models: `Song` (with `filePath`, `albumArtBytes`), `Album`, `Artist`, `Playlist`, `LivePerformance`, `Video`, `AppSettings` (with `localMusicFolder`, `musicSource`)
-- Mock data: 3 artists, 3 albums, 12 songs, 2 playlists — `lib/data/mock_data.dart`
-- Abstract `MusicRepository` interface
-- `MockMusicRepository` — returns mock data
-- `LocalMusicRepository` — implements `MusicRepository` from scanned song list; derives Albums/Artists at query time
-- `SettingsRepository` — reads/writes SharedPreferences
+### Phase 1D — Asset Playback ✅
+- `AudioService` wraps `just_audio` — `setFilePath()` for local, `setUrl()` for remote
+- `PlaybackNotifier` wired — play, pause, skip, seek, volume, progress bar
 
-### Audio Playback (Phase 1D ✅)
-- `AudioService` at `lib/data/audio_service.dart` — wraps `just_audio`
-  - Uses `setFilePath()` for local paths (`/...`), `setUrl()` for remote/asset URLs
-- `PlaybackNotifier` wired to `AudioService` — play, pause, skip next/prev, seek, volume
-- Position and duration streams drive live progress bar in Queue page
+### Phase 1E — Local Folder Library ✅
+- Pure-Dart inline ID3v2 parser in `local_music_scanner.dart`
+- JSON cache at app support directory, cold-launch restore via `AppShell`
+- `MANAGE_EXTERNAL_STORAGE` + `READ_MEDIA_AUDIO` permissions in AndroidManifest
+- Bug fixes 2026-06-27: ref.read→ref.watch, file:// prefix, permission, cache restore
 
-### Local Folder Library (Phase 1E ✅)
-- `LocalMusicScanner` — async folder scan, pure-Dart inline ID3v2 parser, fallback chain (filename/folder for missing tags), stable MD5 song IDs
-- `LocalMusicRepository` — `MusicRepository` implementation backed by scanned song list
-- `localLibraryProvider` — scan state (isScanning, progress count, error), JSON cache at app support directory
-- `musicRepositoryProvider` in `library_provider.dart` — uses `ref.watch` (not `ref.read`) so it rebuilds when songs update or source changes
-- Cold-launch cache restore wired in `AppShell` (`app.dart`) via `ref.listen(settingsProvider)` → `initFromSettings()`
-- Settings → Local Library section: folder picker, scan progress indicator, song count, Rescan button, Music Source dropdown
+### Phase 2 — YouTube Music Search ✅
+- `YouTubeMusicService` — raw InnerTube HTTP (no youtube_explode search API)
+- Parser handles `musicCardShelfRenderer` + `itemSectionRenderer` (fixed 2026-06-27 — was looking for `musicShelfRenderer` which never appears)
+- Artist extraction handles both `[Artist • Duration]` and `[Song • Artist • Album]` run formats
+- Search returns `SearchResults` with songs, albums, artists, playlists
+- Album/artist taps navigate to `AlbumPage`/`ArtistPage`
+- `INTERNET` permission in AndroidManifest
 
-### Bug Fixes Applied (2026-06-27)
-- **Library never refreshed** — `LibraryNotifier.build()` used `ref.read` instead of `ref.watch` for `musicRepositoryProvider`
-- **Playback failed on local files** — scanner stored `file://$path`; `just_audio` requires raw path via `setFilePath()`. Fixed in scanner + `AudioService`
-- **Library wiped on every settings save** — `localLibraryProvider.build()` watched `settingsProvider` and reset state to empty on every rebuild. Replaced with `initFromSettings()` + `_cacheLoaded` flag
-- **Cold-launch cache never loaded** — `initFromSettings` was only called from Settings page. Moved to `AppShell` so it runs on every launch
-- **Android permission wrong** — changed `Permission.audio` → `Permission.manageExternalStorage`; added `MANAGE_EXTERNAL_STORAGE` to `AndroidManifest.xml`
+### Error Visibility
+- Red banner at top of queue page shows exact error when playback fails
+- `PlaybackState.lastError` field surfaces errors from `_resolveUrl` and `_audio.play()`
 
-### Pages & Navigation
-- All 4 pages: Library, Queue, Search, Settings
-- Detail pages: Album, Artist, Playlist
-- GoRouter with `StatefulShellRoute.indexedStack` — 4 tabs preserve back stack
-- Album/Artist/Playlist drill-in from Library wired
+---
 
-### Android
-- `READ_MEDIA_AUDIO` + `READ_EXTERNAL_STORAGE` (≤ API 32) + `MANAGE_EXTERNAL_STORAGE` in AndroidManifest.xml
+## Playback Debugging Log 🔴
+
+YouTube stream URL is fetched successfully (`getStreamUrl` returns a URL), but `just_audio` fails to play it.
+
+| Version | Change | Result |
+|---------|--------|--------|
+| v1.2.1 | Fix parser (musicCardShelfRenderer) | Search works, playback frozen at 0:00, no error |
+| v1.2.2 | Explicit `androidSdkless` client in getManifest | Same — already default in v3.1.0 |
+| v1.2.4 | Add `lastError` to PlaybackState, snackbar on error | No snackbar appeared |
+| v1.2.5 | Red error banner on queue page | Banner shows: "Playback error: 0 source error" |
+| v1.2.6 | Pass YouTube user-agent header to `just_audio setUrl()` | Same error |
+| v1.2.7 | Prefer AAC/mp4 (itag 140) over opus/webm (itag 251) | Same error |
+
+**Key facts:**
+- "Playback error: 0 source error" = `just_audio` got the URL but failed to open the stream
+- Error only appears when user drags seek bar — not immediately on tap
+- Stream URL is definitely being returned (error path says "Playback error", not "getStreamUrl returned null")
+- AAC/mp4 itag 140 is now selected — opus/webm ruled out as cause
+- YouTube user-agent header is sent — 403 from missing UA ruled out
+
+**Next suspects:**
+- The `n` parameter in the CDN URL may need deobfuscation that `youtube_explode_dart` isn't doing correctly for the `androidSdkless` client
+- The CDN URL may be IP-locked to the server that fetched it (Mac) and not usable from the Android device
+- `just_audio` Android may need `okhttp` or a specific media3 version for YouTube CDN
 
 ---
 
 ## What's Pending 🔴
 
-### On-Device Test (do this first)
-- Rebuild APK with bug fixes and install
-- Test: Settings → pick a music folder → scan runs → library shows real tracks
-- Test: tap a song → plays audio (not silence)
-- Test: kill app, reopen → library reloads from cache without rescanning
-- Test: Rescan → no duplicates
+### YouTube Playback (blocker)
+- Source error 0 in just_audio when playing YouTube CDN URL
+- Next approach to try: fetch stream URL on device using a different method
 
 ### UI Polish
-- Album art (`albumArtBytes`) embedded in Song but `ArtThumbnail` still shows grey placeholder — wire `Image.memory(albumArtBytes)` when non-null
+- Album art: `albumArtBytes` on Song not displayed — `ArtThumbnail` shows grey placeholder
+- YouTube thumbnails (`thumbnailUrl` on Song) not displayed
 - `defaultLibraryTab` setting not applied on Library page init
-- `autoOpenQueue` setting not implemented — tapping a song doesn't switch to Queue tab
+- `autoOpenQueue` setting not implemented
 
-### Navigation Wiring
-- Search results → drill-in routes not connected
-- Context menu "View Album" / "View Artist" on detail pages → push route
-- Back buttons on detail pages (deep-link entry has no back)
-
-### Phase 2 — YouTube Music
-- See `ytmusic.md` Phase 2 section
+### Navigation
+- Context menu "View Album" / "View Artist" not wired on detail pages
 
 ---
 
-## Known Issues 🟡
+## Known Build Quirks
 
-- `RepeatMode` name conflict with Flutter's internal `RepeatMode` — resolved with import alias in queue_page
-- `just_audio` not supported on web — mock data fallback works, local library section hidden on web
-- `MANAGE_EXTERNAL_STORAGE` requires user to grant "All files access" in Android settings on API 30+ — the permission dialog may redirect to system settings instead of showing inline
+- `flutter clean` → rebuild requires `--no-shrink` flag or shader compiler OOM-kills on 8GB RAM
+- `git add/status` inside `flutter/` hangs — always use `GIT_DIR`+`GIT_WORK_TREE` pattern
+- Gradle pinned to 8.14.5, AGP to 8.11.1 — do not upgrade
+- arm64 only (`--target-platform android-arm64`) to avoid OOM during AOT compile
 
 ---
 
@@ -97,41 +102,34 @@ Phase 1D (asset playback) and Phase 1E (local folder library) are complete. A ba
 
 ```
 lib/
-├── main.dart                    # Entry point — ProviderScope
-├── app.dart                     # GoRouter + AppShell (wires cold-launch cache init)
-├── theme.dart                   # AppColors, AppTextStyles, appTheme
-├── models/                      # Song, Album, Artist, Playlist, AppSettings, etc.
+├── main.dart
+├── app.dart                         # GoRouter + AppShell (cold-launch cache init)
+├── theme.dart
+├── models/                          # Song, Album, Artist, Playlist, AppSettings, etc.
 ├── data/
-│   ├── music_repository.dart    # Abstract interface
+│   ├── music_repository.dart        # Abstract interface + SearchResults
 │   ├── mock_music_repository.dart
 │   ├── mock_data.dart
-│   ├── local_music_scanner.dart  # Inline ID3v2 parser + fallback chain
+│   ├── local_music_scanner.dart     # Inline ID3v2 parser
 │   ├── local_music_repository.dart
-│   ├── audio_service.dart        # just_audio wrapper (setFilePath for local, setUrl for remote)
+│   ├── audio_service.dart           # just_audio wrapper
+│   ├── youtube_music_service.dart   # InnerTube search + stream URL fetch
+│   ├── youtube_library_cache.dart   # JSON cache for saved YT songs
 │   └── settings_repository.dart
 ├── providers/
-│   ├── library_provider.dart    # musicRepositoryProvider (ref.watch — switches mock ↔ local)
-│   ├── local_library_provider.dart # scan state + JSON cache + initFromSettings()
-│   ├── playback_provider.dart
-│   ├── search_provider.dart
+│   ├── library_provider.dart        # musicRepositoryProvider
+│   ├── local_library_provider.dart  # scan state + JSON cache
+│   ├── yt_library_provider.dart     # YT service singleton + saved library
+│   ├── playback_provider.dart       # PlaybackNotifier + lastError
+│   ├── search_provider.dart         # SearchNotifier → YouTubeMusicService
 │   └── settings_provider.dart
 ├── pages/
 │   ├── library_page.dart
-│   ├── queue_page.dart
+│   ├── queue_page.dart              # Shows red error banner on lastError
 │   ├── search_page.dart
 │   ├── settings_page.dart
 │   ├── album_page.dart
 │   ├── artist_page.dart
 │   └── playlist_page.dart
 └── components/
-    ├── buttons.dart
-    ├── tabs/
-    ├── list_rows/
-    ├── menus/
-    ├── drawers/
-    ├── dialogs/
-    ├── art_thumbnail.dart
-    └── download_button.dart
-assets/
-└── audio/                       # Asset MP3s for Phase 1D testing
 ```

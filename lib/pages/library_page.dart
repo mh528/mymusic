@@ -338,40 +338,87 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       return _buildEmptySearch();
     }
     final ytNotifier = ref.read(ytLibraryProvider.notifier);
-    return ListView.builder(
-      itemCount: songs.length,
-      itemBuilder: (context, i) {
-        // For YT results, reflect actual library membership so the context menu
-        // shows the correct Add/Remove label and icon state.
-        final rawSong = songs[i];
-        final song = isYtResult
-            ? rawSong.copyWith(inLibrary: ytNotifier.isInLibrary(rawSong.id))
-            : rawSong;
-        return SongRow(
-          song: song,
-          onTap: () {
-            playbackNotifier.playSong(song, queue: songs);
-            if (settings?.autoOpenQueue == true) context.go('/queue');
-          },
-          onDownloadTap: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
-          onMoreTap: () => showSongContextMenu(
-            context,
-            song,
-            onAddToLibrary: isYtResult
-                ? () => ytNotifier.addToLibrary(song)
-                : () => libraryNotifier.toggleLibrary(song.id),
-            onRemoveFromLibrary: isYtResult
-                ? () => ytNotifier.removeFromLibrary(song.id)
-                : () => libraryNotifier.toggleLibrary(song.id),
-            onAddToQueue: () => playbackNotifier.addToQueue(song),
-            onDownload: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
-            onRemoveDownload: isYtResult ? null : () => libraryNotifier.toggleSongDownload(song.id),
-            onPlayNext: () => playbackNotifier.addToQueue(song),
-            onViewAlbum: () => context.push('/library/album/${song.albumId}'),
-            onViewArtist: () => context.push('/library/artist/${song.artistId}'),
+    return Column(
+      children: [
+        // Play All header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${songs.length} song${songs.length == 1 ? '' : 's'}',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+              TextButton.icon(
+                onPressed: songs.isEmpty
+                    ? null
+                    : () {
+                        playbackNotifier.playSong(songs.first, queue: songs);
+                        if (settings?.autoOpenQueue == true) context.go('/queue');
+                      },
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Play All'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.white),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: songs.length,
+            itemBuilder: (context, i) {
+              // For YT results, reflect actual library membership so the context
+              // menu shows the correct Add/Remove label and icon state.
+              final rawSong = songs[i];
+              final song = isYtResult
+                  ? rawSong.copyWith(inLibrary: ytNotifier.isInLibrary(rawSong.id))
+                  : rawSong;
+              return SongRow(
+                song: song,
+                onTap: () {
+                  // Tap plays only this song — use "Play All" to play the full list.
+                  playbackNotifier.playSong(song, queue: [song]);
+                  if (settings?.autoOpenQueue == true) context.go('/queue');
+                },
+                onDownloadTap: isYtResult
+                    ? (song.isDownloading
+                        ? null
+                        : () {
+                            if (song.isDownloaded) {
+                              ytNotifier.removeDownload(song);
+                            } else {
+                              ytNotifier.downloadSong(
+                                  song, ref.read(youtubeMusicServiceProvider));
+                            }
+                          })
+                    : () => libraryNotifier.toggleSongDownload(song.id),
+                onMoreTap: () => showSongContextMenu(
+                  context,
+                  song,
+                  onAddToLibrary: isYtResult
+                      ? () => ytNotifier.addToLibrary(song)
+                      : () => libraryNotifier.toggleLibrary(song.id),
+                  onRemoveFromLibrary: isYtResult
+                      ? () => ytNotifier.removeFromLibrary(song.id)
+                      : () => libraryNotifier.toggleLibrary(song.id),
+                  onAddToQueue: () => playbackNotifier.addToQueue(song),
+                  onDownload: isYtResult
+                      ? () => ytNotifier.downloadSong(
+                          song, ref.read(youtubeMusicServiceProvider))
+                      : () => libraryNotifier.toggleSongDownload(song.id),
+                  onRemoveDownload: isYtResult
+                      ? () => ytNotifier.removeDownload(song)
+                      : () => libraryNotifier.toggleSongDownload(song.id),
+                  onPlayNext: () => playbackNotifier.playNext(song),
+                  onViewAlbum: () => context.push('/library/album/${song.albumId}'),
+                  onViewArtist: () => context.push('/library/artist/${song.artistId}'),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

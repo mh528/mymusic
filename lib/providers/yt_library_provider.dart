@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import '../data/youtube_library_cache.dart';
 import '../data/youtube_music_service.dart';
 import '../models/song.dart';
@@ -57,4 +59,55 @@ class YtLibraryNotifier extends Notifier<YtLibraryState> {
   }
 
   bool isInLibrary(String songId) => state.songs.any((s) => s.id == songId);
+
+  /// Downloads a YouTube song to local storage as AAC/mp4 and persists the file path.
+  Future<void> downloadSong(
+    Song song,
+    YouTubeMusicService ytSvc, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (song.videoId == null) return;
+    final dir = await getApplicationSupportDirectory();
+    final destPath = '${dir.path}/downloads/${song.videoId}.m4a';
+
+    state = state.copyWith(
+      songs: state.songs
+          .map((s) => s.id == song.id ? s.copyWith(isDownloading: true) : s)
+          .toList(),
+    );
+
+    try {
+      await ytSvc.downloadAudio(song.videoId!, destPath, onProgress: onProgress);
+      final updated =
+          song.copyWith(isDownloaded: true, isDownloading: false, filePath: destPath);
+      await _cache.update(updated, state.songs);
+      state = state.copyWith(
+        songs: state.songs.map((s) => s.id == song.id ? updated : s).toList(),
+      );
+    } catch (e) {
+      state = state.copyWith(
+        songs: state.songs
+            .map((s) => s.id == song.id ? s.copyWith(isDownloading: false) : s)
+            .toList(),
+      );
+      rethrow;
+    }
+  }
+
+  /// Deletes the downloaded file and clears filePath/isDownloaded.
+  Future<void> removeDownload(Song song) async {
+    if (song.filePath != null) {
+      final file = File(song.filePath!);
+      if (file.existsSync()) {
+        try {
+          file.deleteSync();
+        } catch (_) {}
+      }
+    }
+    final updated = song.copyWith(isDownloaded: false, clearFilePath: true);
+    await _cache.update(updated, state.songs);
+    state = state.copyWith(
+      songs: state.songs.map((s) => s.id == song.id ? updated : s).toList(),
+    );
+  }
 }

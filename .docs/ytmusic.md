@@ -7,7 +7,7 @@ The app has a complete UI shell and Riverpod state layer. Audio playback is wire
 **Order of implementation:**
 1. **Phase 1D** — Wire `just_audio` to asset MP3s, hear sound ✅ DONE
 2. **Phase 1E** — Local folder library: user picks a folder, app scans ID3 tags, library populates ✅ DONE (+ bug-fixed 2026-06-27)
-3. **Phase 2** — YouTube Music streaming via `youtube_explode_dart` (anonymous, no login)
+3. **Phase 2** — YouTube Music streaming via `youtube_explode_dart` (anonymous, no login) 🔧 IN PROGRESS
 
 ---
 
@@ -19,6 +19,9 @@ The app has a complete UI shell and Riverpod state layer. Audio playback is wire
 - **ID3 tags via inline Dart parser** — pure-Dart ID3v2 parser inline in `local_music_scanner.dart` (replaced `metadata_god` which required Rust/Swift Package Manager)
 - **No SQLite** — scanned library is cached as a JSON file in app support directory
 - **`file_picker`** for folder selection on Android/macOS/desktop
+- **YouTube search is always-on** — SearchNotifier calls YouTubeMusicService directly, bypassing MusicSource. No toggle needed.
+- **MusicSource.youtube** added to enum but controls Library tab only; search ignores it
+- **INTERNET permission** added to AndroidManifest (was missing, caused all YT calls to fail silently)
 
 ---
 
@@ -213,13 +216,38 @@ Future<void> playSong(Song song) async {
 
 ### Implementation order for Phase 2
 
-1. Add `youtube_explode_dart` to `pubspec.yaml`, run `flutter pub get`
-2. Create `youtube_music_service.dart`
-3. Create `youtube_music_repository.dart` 
-4. Add `MusicSource.youtube` to enum + update Settings label
-5. Add `youtubeMusicServiceProvider` + extend `musicRepositoryProvider` switch
-6. Update `PlaybackNotifier.playSong()` to fetch stream URL when `filePath == null`
-7. Test: Settings → Music Source → YouTube Music → Search → tap result → plays
+1. ✅ Add `youtube_explode_dart` to `pubspec.yaml` (upgraded to ^3.1.0)
+2. ✅ Create `youtube_music_service.dart` — search + getStreamUrl + downloadAudio
+3. ✅ Create `yt_library_provider.dart` — singleton provider + YT library cache
+4. ✅ Add `MusicSource.youtube` to enum
+5. ✅ `PlaybackNotifier._resolveUrl()` — checks `song.videoId != null` → calls `youtubeMusicServiceProvider.getStreamUrl()` directly
+6. ✅ Search: `SearchNotifier` calls `youtubeMusicServiceProvider.search()` directly (always-on, no MusicSource check)
+7. ✅ Add INTERNET permission to AndroidManifest
+8. ✅ Search page shows spinner while loading, catches exceptions
+9. ✅ Fix search parser — was looking for `musicShelfRenderer`, YouTube actually returns `musicCardShelfRenderer` + `itemSectionRenderer`
+10. ✅ Fix artist extraction — col1 runs format is `[Song • Artist • Album]`, not `[Artist]`
+11. ✅ Search returns albums, artists, playlists in addition to songs
+12. ✅ Album/artist taps navigate to detail pages
+13. ✅ Error banner on queue page — `PlaybackState.lastError` surfaced as red banner
+14. ✅ Pass YouTube user-agent header in `just_audio setUrl()` call
+15. ✅ Prefer AAC/mp4 (itag 140) over opus/webm (itag 251) for Android compatibility
+16. 🔲 On-device test: Search → results appear → tap → plays audio — **BLOCKED: source error 0**
+
+### What was NOT built (and why)
+- `YouTubeMusicRepository` — not needed; search and playback go directly through `youtubeMusicServiceProvider`
+- MusicSource toggle for YouTube in Settings — YouTube search is always-on; MusicSource controls Library tab only
+
+### Playback debugging history (2026-06-27/28)
+
+Stream URL is successfully fetched from YouTube. `just_audio` receives it but fails with "source error 0" on Android. Error appears when seeking, not immediately on tap.
+
+| Attempt | Hypothesis | Result |
+|---------|-----------|--------|
+| v1.2.2 | Explicit `androidSdkless` client bypasses PoToken | No change — already the default |
+| v1.2.6 | Missing user-agent header causes CDN 403 | No change |
+| v1.2.7 | opus/webm not supported by Android media stack; switch to AAC/mp4 | No change, same error |
+
+**Current hypothesis:** CDN URL may be IP-locked to the machine that fetched it (Mac), making it unplayable on the Android device. Need to test fetching the stream URL on-device.
 
 ---
 

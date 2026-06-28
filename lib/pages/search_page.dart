@@ -222,7 +222,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             final inLib = ref.watch(ytLibraryProvider).songs.any((s) => s.id == song.id);
             return SongRow(
               song: song.copyWith(inLibrary: inLib),
-              onTap: () => playback.playSong(song, queue: songs.cast()),
+              onTap: () => playback.playSong(song, queue: [song]),
               onMoreTap: () => _showYtSongMenu(song, inLib, ytLibrary),
             );
           },
@@ -282,6 +282,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 } else {
                   ytLibrary.addToLibrary(song);
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.queue_music, color: Colors.white),
+              title: const Text('Play Next', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(playbackProvider.notifier).playNext(song);
               },
             ),
             ListTile(

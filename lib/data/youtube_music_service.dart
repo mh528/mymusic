@@ -6,16 +6,22 @@ import '../models/album.dart';
 import '../models/artist.dart';
 import '../models/playlist.dart';
 import 'music_repository.dart';
+import '../models/settings.dart';
 
 const _ytMusicBase = 'https://music.youtube.com/youtubei/v1/';
 const _ytMusicKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
-const _ytMusicContext = {
-  'client': {
-    'clientName': 'WEB_REMIX',
-    'clientVersion': '1.20260627.01.00',
-    'hl': 'en',
-  }
-};
+Map<String, dynamic> get _ytMusicContext {
+  final now = DateTime.now().toUtc();
+  final date =
+      '${now.year}.${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+  return {
+    'client': {
+      'clientName': 'WEB_REMIX',
+      'clientVersion': '1.$date.01.00',
+      'hl': 'en',
+    }
+  };
+}
 
 class YouTubeMusicService {
   final _yt = YoutubeExplode();
@@ -267,20 +273,24 @@ class YouTubeMusicService {
   }
 
   /// Fetches a live CDN stream URL. Never cache — expires in ~6 hours.
-  Future<String?> getStreamUrl(String videoId) async {
+  Future<String?> getStreamUrl(String videoId, {AudioQuality quality = AudioQuality.auto}) async {
     try {
-      print('[YT] getStreamUrl: $videoId');
+      print('[YT] getStreamUrl: $videoId quality=$quality');
       final manifest = await _yt.videos.streams.getManifest(
         videoId,
         ytClients: [YoutubeApiClient.androidSdkless],
       );
-      // Prefer AAC/mp4 — opus/webm causes source error 0 on Android just_audio.
-      // Fall back to highest bitrate of any format if no mp4 found.
-      final allAudio = manifest.audioOnly;
-      final mp4Streams = allAudio.where((s) => s.codec.mimeType == 'audio/mp4').toList();
-      final audio = mp4Streams.isNotEmpty
-          ? (mp4Streams..sort((a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond))).first
-          : allAudio.withHighestBitrate();
+      // Only use AAC/mp4 — opus/webm causes source error 0 on Android just_audio.
+      final mp4Streams = manifest.audioOnly
+          .where((s) => s.codec.mimeType == 'audio/mp4')
+          .toList()
+        ..sort((a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond));
+      if (mp4Streams.isEmpty) {
+        print('[YT] WARNING: no mp4 audio stream for $videoId — refusing fallback to incompatible codec');
+        return null;
+      }
+      // low quality → lowest bitrate (itag 139, ~50 kbps); auto/high → highest.
+      final audio = quality == AudioQuality.low ? mp4Streams.last : mp4Streams.first;
       final url = audio.url.toString();
       print('[YT] stream: mime=${audio.codec.mimeType} bitrate=${audio.bitrate.bitsPerSecond}');
       return url;
@@ -290,14 +300,22 @@ class YouTubeMusicService {
     }
   }
 
-  /// Downloads audio to [destPath]. Streams bytes to avoid loading into RAM.
+  /// Downloads audio to [destPath] as AAC/mp4. Streams bytes to avoid loading into RAM.
   Future<void> downloadAudio(
     String videoId,
     String destPath, {
     void Function(int received, int total)? onProgress,
   }) async {
-    final manifest = await _yt.videos.streams.getManifest(videoId);
-    final audio = manifest.audioOnly.withHighestBitrate();
+    final manifest = await _yt.videos.streams.getManifest(
+      videoId,
+      ytClients: [YoutubeApiClient.androidSdkless],
+    );
+    final mp4Streams = manifest.audioOnly
+        .where((s) => s.codec.mimeType == 'audio/mp4')
+        .toList()
+      ..sort((a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond));
+    if (mp4Streams.isEmpty) throw Exception('No AAC/mp4 stream available for $videoId');
+    final audio = mp4Streams.first;
     final stream = _yt.videos.streams.get(audio);
     final file = File(destPath);
     await file.parent.create(recursive: true);

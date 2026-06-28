@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 import '../models/song.dart';
 
 class LocalMusicScanner {
-  static const _audioExtensions = {'.mp3', '.flac', '.m4a', '.aac', '.wav', '.ogg'};
+  static const _audioExtensions = {'.mp3', '.flac', '.m4a', '.aac', '.wav', '.ogg', '.opus'};
 
   Future<List<Song>> scan(
     List<String> folderPaths, {

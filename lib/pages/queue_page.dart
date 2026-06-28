@@ -75,20 +75,21 @@ class QueuePage extends ConsumerWidget {
                 );
               },
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Up Next',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+            if (queue.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Up Next',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
             Expanded(
               child: queue.isEmpty
                   ? _EmptyQueue()
@@ -193,15 +194,7 @@ class _NowPlayingSection extends ConsumerWidget {
     final showVolumeSlider = settingsAsync.valueOrNull?.showQueueVolumeSlider ?? true;
 
     if (currentSong == null) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Text(
-            'Nothing playing',
-            style: TextStyle(color: AppColors.textMuted, fontSize: 14),
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final song = currentSong!;

@@ -4,6 +4,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'app.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.mymusic.audio',
     androidNotificationChannelName: 'My Music',

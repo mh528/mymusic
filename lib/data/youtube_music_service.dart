@@ -15,13 +15,14 @@ const _ytMusicKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 void _log(String msg) => dev.log(msg, name: 'YT');
 
 Map<String, dynamic> get _ytMusicContext {
+  // YouTube Music clientVersion format: 1.YYYYMM01.01.00 — must be the 1st of the month.
+  // Using the actual day (e.g. YYYYMMDD) causes 404s.
   final now = DateTime.now().toUtc();
-  final date =
-      '${now.year}.${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+  final version = '1.${now.year}${now.month.toString().padLeft(2, '0')}01.01.00';
   return {
     'client': {
       'clientName': 'WEB_REMIX',
-      'clientVersion': '1.$date.01.00',
+      'clientVersion': version,
       'hl': 'en',
     }
   };

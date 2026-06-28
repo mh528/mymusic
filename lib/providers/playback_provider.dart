@@ -230,7 +230,9 @@ class PlaybackNotifier extends Notifier<PlaybackState> {
           isPlaying: false,
         );
         final url = await _resolveUrlSilent(next);
-        if (url != null) await _audio.play(url);
+        if (url != null) {
+          try { await _audio.play(url); } on LateInitializationError { state = state.copyWith(lastError: 'Audio not ready — please try again'); }
+        }
       } else {
         _audio.pause();
         state = state.copyWith(isPlaying: false, position: Duration.zero);

@@ -19,20 +19,15 @@ dependencies:
 
   # Audio playback (Chrome + Android)
   just_audio: ^0.9.40
-  just_audio_background: 0.0.1-beta.12
 
   # Local persistence for settings
   shared_preferences: ^2.3.0
-
-  # HTTP for Phase 2 YouTube Music
-  dio: ^5.4.3
 
   # Phase 1E — Local folder library
   file_picker: ^11.0.2       # Native folder picker dialog
   permission_handler: ^11.0.0 # Android READ_MEDIA_AUDIO permission
   path_provider: ^2.1.0      # getApplicationSupportDirectory() for JSON cache
   crypto: ^3.0.3             # MD5 hash for stable song IDs
-  mp3_info: ^0.2.3
 
   # Phase 2 — YouTube Music streaming
   youtube_explode_dart: ^3.1.0

@@ -220,7 +220,7 @@ class _NowPlayingSection extends ConsumerWidget {
           // Song info row
           Row(
             children: [
-              ArtThumbnail(size: 56),
+              ArtThumbnail(size: 56, thumbnailUrl: song.thumbnailUrl, artBytes: song.albumArtBytes),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

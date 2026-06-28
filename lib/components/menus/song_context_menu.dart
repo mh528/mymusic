@@ -142,7 +142,7 @@ class _SongContextMenuState extends State<SongContextMenu> {
           // Header
           Row(
             children: [
-              ArtThumbnail(size: 48),
+              ArtThumbnail(size: 48, thumbnailUrl: widget.song.thumbnailUrl, artBytes: widget.song.albumArtBytes),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(

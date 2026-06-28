@@ -28,7 +28,7 @@ class SongRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
           child: Row(
             children: [
-              ArtThumbnail(size: 48),
+              ArtThumbnail(size: 48, thumbnailUrl: song.thumbnailUrl, artBytes: song.albumArtBytes),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(

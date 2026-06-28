@@ -59,9 +59,19 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     super.dispose();
   }
 
+  bool _defaultTabApplied = false;
+
   void _syncFromSettings(AppSettings settings) {
     final visibleTabs = settings.orderedVisibleTabs;
     if (visibleTabs.isEmpty) return;
+    if (!_defaultTabApplied) {
+      _defaultTabApplied = true;
+      final preferred = settings.defaultLibraryTab;
+      setState(() {
+        _activeTab = visibleTabs.contains(preferred) ? preferred : visibleTabs.first;
+      });
+      return;
+    }
     if (!visibleTabs.contains(_activeTab)) {
       setState(() {
         _activeTab = visibleTabs.first;

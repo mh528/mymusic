@@ -1,13 +1,13 @@
 # My Music — Flutter App Status
 
 **Last Updated:** 2026-06-28  
-**Current Release:** v1.2.7  
+**Current Release:** v1.3.3  
 **Build APK:** `flutter build apk --release --target-platform android-arm64 --no-tree-shake-icons --no-shrink`  
 Note: after `flutter clean`, add `--no-shrink` to avoid shader compiler OOM on 8GB RAM.
 
 ---
 
-## Current State: startup crash fixed; YouTube playback fixed via ANDROID_VR client
+## Current State: black screen fixed (v1.3.3); YouTube playback fixed via ANDROID_VR client
 
 Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search all work.
 
@@ -15,6 +15,10 @@ Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search a
 called `JustAudioBackground.init()` without a preceding `WidgetsFlutterBinding.ensureInitialized()`,
 which throws `Binding has not yet been initialized`. Fixed in v1.2.9 (commit 979124a) by
 restoring the binding init before `JustAudioBackground.init()`.
+
+**Black screen (v1.2.8–v1.3.2):** R8 code shrinking stripped `com.ryanheise.audioservice.AudioService` because it was only referenced from AndroidManifest, not traced from Dart/Java. ProGuard rules added in v1.3.1 to keep `com.ryanheise.audioservice.*`. Additionally, `JustAudioBackground.init()` was awaited in `main()` — if the AudioService binding hung, `runApp()` never fired. Fixed in v1.3.3 by wrapping init in a 5-second timeout so the UI always renders.
+
+**Pending (v1.3.3):** `LateInitializationError: field _audioHandler has not been initialized` — inside `just_audio_background` if the user taps play before the 5s timeout elapses and init hasn't completed yet. Fix planned: await with timeout is already in place; need to guard playback calls until init resolves.
 
 **YouTube playback ("source error 0"):** root cause was the stream-extraction client.
 `getStreamUrl` now does a direct InnerTube `youtubei/v1/player` call with the **ANDROID_VR**

@@ -274,9 +274,15 @@ class YouTubeMusicService {
         videoId,
         ytClients: [YoutubeApiClient.androidSdkless],
       );
-      final audio = manifest.audioOnly.withHighestBitrate();
+      // Prefer AAC/mp4 — opus/webm causes source error 0 on Android just_audio.
+      // Fall back to highest bitrate of any format if no mp4 found.
+      final allAudio = manifest.audioOnly;
+      final mp4Streams = allAudio.where((s) => s.codec.mimeType == 'audio/mp4').toList();
+      final audio = mp4Streams.isNotEmpty
+          ? (mp4Streams..sort((a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond))).first
+          : allAudio.withHighestBitrate();
       final url = audio.url.toString();
-      print('[YT] stream url ok, length=${url.length}');
+      print('[YT] stream: mime=${audio.codec.mimeType} bitrate=${audio.bitrate.bitsPerSecond}');
       return url;
     } catch (e, st) {
       print('[YT] getStreamUrl error: $e\n$st');

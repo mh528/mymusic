@@ -3,6 +3,7 @@
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
+build */
 *.g.dart
 *.freezed.dart
 

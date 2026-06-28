@@ -6,8 +6,12 @@ import '../models/song.dart';
 class YouTubeLibraryCache {
   static const _fileName = 'yt_library.json';
 
+  final Directory? _testDirectory;
+
+  YouTubeLibraryCache({Directory? directory}) : _testDirectory = directory;
+
   Future<File> _cacheFile() async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = _testDirectory ?? await getApplicationSupportDirectory();
     return File('${dir.path}/$_fileName');
   }
 

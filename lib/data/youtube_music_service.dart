@@ -48,12 +48,16 @@ Map<String, dynamic> get _androidVrContext => {
 
 class YouTubeMusicService {
   final _yt = YoutubeExplode();
+  final HttpClient Function() _createClient;
+
+  YouTubeMusicService({HttpClient Function()? createClient})
+      : _createClient = createClient ?? HttpClient.new;
 
   Future<SearchResults> search(String query) async {
     try {
       final uri = Uri.parse(
           '${_ytMusicBase}search?prettyPrint=false&alt=json&key=$_ytMusicKey');
-      final client = HttpClient();
+      final client = _createClient();
       try {
         final req = await client.postUrl(uri);
         req.headers
@@ -198,7 +202,7 @@ class YouTubeMusicService {
         artistId: '',
         album: '',
         albumId: '',
-        duration: _parseDuration(durationText),
+        duration: parseDuration(durationText),
         videoId: videoId,
         thumbnailUrl: thumbnailUrl,
         inLibrary: false,
@@ -283,7 +287,7 @@ class YouTubeMusicService {
     return cur;
   }
 
-  Duration _parseDuration(String? text) {
+  Duration parseDuration(String? text) {
     if (text == null) return const Duration(minutes: 3, seconds: 30);
     final parts = text.split(':').map(int.tryParse).toList();
     if (parts.length == 2 && parts[0] != null && parts[1] != null) {
@@ -304,7 +308,7 @@ class YouTubeMusicService {
   Future<String?> getStreamUrl(String videoId,
       {AudioQuality quality = AudioQuality.auto}) async {
     _log('getStreamUrl: $videoId quality=$quality');
-    final direct = await _getStreamUrlDirect(videoId, quality);
+    final direct = await getStreamUrlDirect(videoId, quality);
     if (direct != null) return direct;
     _log('direct player call yielded no url — falling back to youtube_explode');
     return _getStreamUrlViaExplode(videoId, quality);
@@ -313,10 +317,10 @@ class YouTubeMusicService {
   /// Direct InnerTube `youtubei/v1/player` request (ANDROID_MUSIC client).
   /// Returns the itag-140 AAC url (itag 139 for low quality), or null on any
   /// failure / playability error so the caller can fall back.
-  Future<String?> _getStreamUrlDirect(
+  Future<String?> getStreamUrlDirect(
       String videoId, AudioQuality quality) async {
     final uri = Uri.parse('$_ytPlayerEndpoint&key=$_ytMusicKey');
-    final client = HttpClient();
+    final client = _createClient();
     try {
       final req = await client.postUrl(uri);
       req.headers

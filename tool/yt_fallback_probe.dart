@@ -15,8 +15,9 @@ class _LoginRequiredClient implements HttpClient {
   @override
   Future<HttpClientRequest> postUrl(Uri url) async => _FakeRequest();
 
-  // Unused HttpClient surface — delegate would require ~30 overrides.
-  // ignore: avoid_implementing_value_types
+  @override
+  void close({bool force = false}) {}
+
   @override
   dynamic noSuchMethod(Invocation i) => throw UnimplementedError(i.memberName.toString());
 }
@@ -51,7 +52,7 @@ class _FakeResponse extends Stream<List<int>> implements HttpClientResponse {
   @override
   StreamSubscription<List<int>> listen(void Function(List<int>)? onData,
       {Function? onError, void Function()? onDone, bool? cancelOnError}) {
-    return Stream.value(_body.codeUnits).listen(onData,
+    return Stream.value(utf8.encode(_body)).listen(onData,
         onError: onError, onDone: onDone, cancelOnError: cancelOnError);
   }
 

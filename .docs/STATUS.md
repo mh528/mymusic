@@ -7,9 +7,20 @@ Note: after `flutter clean`, add `--no-shrink` to avoid shader compiler OOM on 8
 
 ---
 
-## Current State: YouTube search works, playback broken (source error 0)
+## Current State: startup crash fixed; YouTube playback fixed via ANDROID_VR client
 
-Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search are all working on device. YouTube stream URL is successfully fetched but `just_audio` throws "source error 0" when trying to play it. Root cause not yet confirmed — see Playback Debugging section below.
+Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search all work.
+
+**Startup crash (v1.2.7/v1.2.8):** the app crashed before any UI rendered because `main()`
+called `JustAudioBackground.init()` without a preceding `WidgetsFlutterBinding.ensureInitialized()`,
+which throws `Binding has not yet been initialized`. Fixed in v1.2.9 (commit 979124a) by
+restoring the binding init before `JustAudioBackground.init()`.
+
+**YouTube playback ("source error 0"):** root cause was the stream-extraction client.
+`getStreamUrl` now does a direct InnerTube `youtubei/v1/player` call with the **ANDROID_VR**
+client (verified anonymous, returns playabilityStatus OK with unciphered, no-n-param URLs that
+serve HTTP 200 / 206-on-range). `youtube_explode_dart` (androidSdkless) is kept only as a fallback.
+ANDROID_MUSIC returns LOGIN_REQUIRED and IOS returns 400 anonymously — neither is usable.
 
 ---
 
@@ -45,9 +56,21 @@ Phase 1D (asset playback), Phase 1E (local folder library), and Phase 2 search a
 
 ---
 
-## Playback Debugging Log 🔴
+## Playback Debugging Log ✅ RESOLVED
 
-YouTube stream URL is fetched successfully (`getStreamUrl` returns a URL), but `just_audio` fails to play it.
+**Resolution (2026-06-28):** switched stream extraction to a direct InnerTube `player` call
+with the **ANDROID_VR** client. Diagnostic evidence collected before the fix:
+- The androidSdkless URL had **no `n=` param** → n-param deobfuscation theory ruled out.
+- itag-140 AAC/mp4 was correctly selected → codec theory ruled out.
+- `curl` of the URL from the Mac returned **HTTP 200** and **HTTP 206 on range/seek** requests
+  → the CDN and range handling were fine; the URL itself was valid.
+- ANDROID_VR `/player` (anonymous): playabilityStatus **OK**, 26 formats, itag-140 carries a
+  direct `url`, and that URL serves 200/206 — verified end-to-end through the real
+  `YouTubeMusicService.getStreamUrl` code.
+
+### Historical log (pre-resolution)
+
+YouTube stream URL was fetched successfully (`getStreamUrl` returned a URL), but `just_audio` failed to play it.
 
 | Version | Change | Result |
 |---------|--------|--------|

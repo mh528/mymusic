@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' hide Playlist;
 import '../models/song.dart';
@@ -10,6 +11,9 @@ import '../models/settings.dart';
 
 const _ytMusicBase = 'https://music.youtube.com/youtubei/v1/';
 const _ytMusicKey = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
+
+void _log(String msg) => dev.log(msg, name: 'YT');
+
 Map<String, dynamic> get _ytMusicContext {
   final now = DateTime.now().toUtc();
   final date =
@@ -22,6 +26,25 @@ Map<String, dynamic> get _ytMusicContext {
     }
   };
 }
+
+// ANDROID_VR client — verified anonymous: its /player response returns
+// playabilityStatus OK with adaptiveFormats carrying direct, unciphered `url`
+// fields (no signatureCipher, no n-param). ANDROID_MUSIC and IOS both fail
+// anonymously now (LOGIN_REQUIRED / 400), so VR is the working client.
+const _ytPlayerEndpoint =
+    'https://www.youtube.com/youtubei/v1/player?prettyPrint=false&alt=json';
+Map<String, dynamic> get _androidVrContext => {
+      'client': {
+        'clientName': 'ANDROID_VR',
+        'clientVersion': '1.60.19',
+        'androidSdkVersion': 32,
+        'deviceMake': 'Oculus',
+        'deviceModel': 'Quest 3',
+        'osName': 'Android',
+        'osVersion': '12L',
+        'hl': 'en',
+      }
+    };
 
 class YouTubeMusicService {
   final _yt = YoutubeExplode();
@@ -42,17 +65,17 @@ class YouTubeMusicService {
           ..set('cookie', 'CONSENT=YES+1');
         req.write(jsonEncode({'context': _ytMusicContext, 'query': query}));
         final res = await req.close();
-        print('[YT] HTTP ${res.statusCode} for query: $query');
+        _log('HTTP ${res.statusCode} for query: $query');
         final body = await res.transform(utf8.decoder).join();
-        print('[YT] body length: ${body.length}');
-        if (body.length < 500) print('[YT] body: $body');
+        _log('body length: ${body.length}');
+        if (body.length < 500) _log('body: $body');
         final data = jsonDecode(body) as Map<String, dynamic>;
         return _parseResults(data);
       } finally {
         client.close(force: true);
       }
     } catch (e, st) {
-      print('[YT] search error: $e\n$st');
+      _log('search error: $e\n$st');
       return const SearchResults();
     }
   }
@@ -105,9 +128,9 @@ class YouTubeMusicService {
         }
       }
     } catch (e) {
-      print('[YT] parse error: $e');
+      _log('parse error: $e');
     }
-    print('[YT] parsed songs=${songs.length} albums=${albums.length} artists=${artists.length} playlists=${playlists.length}');
+    _log('parsed songs=${songs.length} albums=${albums.length} artists=${artists.length} playlists=${playlists.length}');
     return SearchResults(songs: songs, albums: albums, artists: artists, playlists: playlists);
   }
 
@@ -273,9 +296,96 @@ class YouTubeMusicService {
   }
 
   /// Fetches a live CDN stream URL. Never cache — expires in ~6 hours.
-  Future<String?> getStreamUrl(String videoId, {AudioQuality quality = AudioQuality.auto}) async {
+  ///
+  /// Primary path: a direct InnerTube `/player` call with the ANDROID_MUSIC
+  /// client, whose adaptiveFormats carry ready-to-play `url` fields (no cipher,
+  /// no n-param). Falls back to youtube_explode_dart if that returns nothing,
+  /// so we are never worse off than the previous implementation.
+  Future<String?> getStreamUrl(String videoId,
+      {AudioQuality quality = AudioQuality.auto}) async {
+    _log('getStreamUrl: $videoId quality=$quality');
+    final direct = await _getStreamUrlDirect(videoId, quality);
+    if (direct != null) return direct;
+    _log('direct player call yielded no url — falling back to youtube_explode');
+    return _getStreamUrlViaExplode(videoId, quality);
+  }
+
+  /// Direct InnerTube `youtubei/v1/player` request (ANDROID_MUSIC client).
+  /// Returns the itag-140 AAC url (itag 139 for low quality), or null on any
+  /// failure / playability error so the caller can fall back.
+  Future<String?> _getStreamUrlDirect(
+      String videoId, AudioQuality quality) async {
+    final uri = Uri.parse('$_ytPlayerEndpoint&key=$_ytMusicKey');
+    final client = HttpClient();
     try {
-      print('[YT] getStreamUrl: $videoId quality=$quality');
+      final req = await client.postUrl(uri);
+      req.headers
+        ..set('content-type', 'application/json')
+        ..set('accept-encoding', 'identity')
+        ..set('user-agent',
+            'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L) gzip');
+      req.write(jsonEncode({
+        'context': _androidVrContext,
+        'videoId': videoId,
+        'contentCheckOk': true,
+        'racyCheckOk': true,
+      }));
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+      final data = jsonDecode(body) as Map<String, dynamic>;
+
+      final status = _nav(data, ['playabilityStatus', 'status']) as String?;
+      if (status != null && status != 'OK') {
+        final reason = _nav(data, ['playabilityStatus', 'reason']) as String?;
+        _log('player status=$status reason=$reason for $videoId');
+        return null;
+      }
+
+      final formats =
+          _nav(data, ['streamingData', 'adaptiveFormats']) as List?;
+      if (formats == null || formats.isEmpty) {
+        _log('no adaptiveFormats for $videoId');
+        return null;
+      }
+      // AAC/mp4 only — itag 140 (~128 kbps) preferred, 139 (~48 kbps) for low.
+      final wantedItag = quality == AudioQuality.low ? 139 : 140;
+      Map? chosen;
+      Map? anyAac;
+      for (final f in formats.cast<Map>()) {
+        final mime = (f['mimeType'] as String?) ?? '';
+        if (!mime.startsWith('audio/mp4')) continue;
+        anyAac ??= f;
+        if (f['itag'] == wantedItag) {
+          chosen = f;
+          break;
+        }
+      }
+      chosen ??= anyAac;
+      if (chosen == null) {
+        _log('no AAC/mp4 adaptiveFormat for $videoId');
+        return null;
+      }
+      // ANDROID_MUSIC returns a plain `url`; if a signatureCipher shows up
+      // instead, this client can't deobfuscate it — bail to the fallback.
+      final url = chosen['url'] as String?;
+      if (url == null) {
+        _log('AAC format has no direct url (signatureCipher) for $videoId');
+        return null;
+      }
+      _log('direct stream itag=${chosen['itag']} mime=${chosen['mimeType']}');
+      return url;
+    } catch (e) {
+      _log('direct player error: $e');
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  /// Fallback stream extraction via youtube_explode_dart.
+  Future<String?> _getStreamUrlViaExplode(
+      String videoId, AudioQuality quality) async {
+    try {
       final manifest = await _yt.videos.streams.getManifest(
         videoId,
         ytClients: [YoutubeApiClient.androidSdkless],
@@ -286,16 +396,16 @@ class YouTubeMusicService {
           .toList()
         ..sort((a, b) => b.bitrate.bitsPerSecond.compareTo(a.bitrate.bitsPerSecond));
       if (mp4Streams.isEmpty) {
-        print('[YT] WARNING: no mp4 audio stream for $videoId — refusing fallback to incompatible codec');
+        _log('WARNING: no mp4 audio stream for $videoId — refusing fallback to incompatible codec');
         return null;
       }
       // low quality → lowest bitrate (itag 139, ~50 kbps); auto/high → highest.
       final audio = quality == AudioQuality.low ? mp4Streams.last : mp4Streams.first;
       final url = audio.url.toString();
-      print('[YT] stream: mime=${audio.codec.mimeType} bitrate=${audio.bitrate.bitsPerSecond}');
+      _log('explode stream: mime=${audio.codec.mimeType} bitrate=${audio.bitrate.bitsPerSecond}');
       return url;
     } catch (e, st) {
-      print('[YT] getStreamUrl error: $e\n$st');
+      _log('getStreamUrl (explode) error: $e\n$st');
       return null;
     }
   }

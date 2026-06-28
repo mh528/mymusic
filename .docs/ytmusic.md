@@ -237,9 +237,18 @@ Future<void> playSong(Song song) async {
 - `YouTubeMusicRepository` — not needed; search and playback go directly through `youtubeMusicServiceProvider`
 - MusicSource toggle for YouTube in Settings — YouTube search is always-on; MusicSource controls Library tab only
 
-### Playback debugging history (2026-06-27/28)
+### Playback resolution (2026-06-28)
 
-Stream URL is successfully fetched from YouTube. `just_audio` receives it but fails with "source error 0" on Android. Error appears when seeking, not immediately on tap.
+Fixed. `getStreamUrl` now makes a direct InnerTube `youtubei/v1/player` call with the
+**ANDROID_VR** client (`www.youtube.com/youtubei/v1/player`), reusing the same hand-rolled
+`HttpClient` pattern as search. Its `streamingData.adaptiveFormats` carry direct, unciphered
+itag-140 AAC URLs (no signatureCipher, no n-param) that serve 200/206. `youtube_explode_dart`
+(androidSdkless) remains only as a fallback if the direct call returns no playable URL.
+ANDROID_MUSIC → LOGIN_REQUIRED and IOS → HTTP 400 anonymously, so neither was usable.
+
+### Playback debugging history (2026-06-27/28, pre-fix)
+
+Stream URL was successfully fetched from YouTube. `just_audio` received it but failed with "source error 0" on Android. Error appeared when seeking, not immediately on tap.
 
 | Attempt | Hypothesis | Result |
 |---------|-----------|--------|
